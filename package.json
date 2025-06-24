@@ -1,0 +1,15 @@
+{
+  "name": "auto-insurance-poc",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && python main.py",
+    "server:setup": "cd server && chmod +x setup.sh && ./setup.sh",
+    "client:dev": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "start": "cd server && python main.py"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
