@@ -20,7 +20,8 @@ import {
   Event, 
   Description,
   PhotoCamera,
-  CheckCircle
+  CheckCircle,
+  LocalPolice
 } from '@mui/icons-material';
 import { ClaimData } from '../../types/claim';
 
@@ -141,6 +142,23 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
               <ListItemText
                 primary="Damage Photos"
                 secondary={`${claimData.damagePhotos.length} photo(s) uploaded`}
+              />
+            </ListItem>
+
+            <Divider variant="inset" component="li" />
+
+            {/* Police Report */}
+            <ListItem>
+              <ListItemIcon>
+                <LocalPolice color="primary" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Police Report"
+                secondary={
+                  claimData.policeReport.hasReport 
+                    ? `Police report filed${claimData.policeReport.reportNumber ? ` (${claimData.policeReport.reportNumber})` : ''}`
+                    : 'No police report filed'
+                }
               />
             </ListItem>
           </List>

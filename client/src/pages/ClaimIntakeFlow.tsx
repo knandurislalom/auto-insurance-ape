@@ -17,7 +17,8 @@ import ClaimInformationStep from '../components/steps/ClaimInformationStep';
 import DamagePhotosStep from '../components/steps/DamagePhotosStep';
 import ConfirmationStep from '../components/steps/ConfirmationStep';
 import SuccessStep from '../components/steps/SuccessStep';
-import { ClaimData, ClaimStep, Party, DamagePhoto } from '../types/claim';
+import PoliceReportStep from '../components/steps/PoliceReportStep';
+import { ClaimData, ClaimStep, Party, DamagePhoto, PoliceReport } from '../types/claim';
 
 const initialClaimData: ClaimData = {
   parties: [{ id: '1', name: 'Sarah Johnson' }], // Pre-filled user
@@ -26,6 +27,10 @@ const initialClaimData: ClaimData = {
   incidentDate: '',
   description: '',
   damagePhotos: [],
+  policeReport: {
+    id: '1',
+    hasReport: false
+  },
   confirmed: false
 };
 
@@ -33,7 +38,8 @@ const steps: ClaimStep[] = [
   { step: 1, title: 'Parties Involved', completed: false },
   { step: 2, title: 'Claim Information', completed: false },
   { step: 3, title: 'Damage Photos', completed: false },
-  { step: 4, title: 'Confirm & Submit', completed: false }
+  { step: 4, title: 'Police Report', completed: false },
+  { step: 5, title: 'Confirm & Submit', completed: false }
 ];
 
 const ClaimIntakeFlow: React.FC = () => {
@@ -129,6 +135,13 @@ const ClaimIntakeFlow: React.FC = () => {
         );
       case 4:
         return (
+          <PoliceReportStep
+            policeReport={claimData.policeReport}
+            onUpdate={(policeReport: PoliceReport) => updateClaimData({ policeReport })}
+          />
+        );
+      case 5:
+        return (
           <ConfirmationStep
             claimData={claimData}
             onUpdate={(data: any) => updateClaimData(data)}
@@ -150,6 +163,9 @@ const ClaimIntakeFlow: React.FC = () => {
       case 3:
         return claimData.damagePhotos.length > 0;
       case 4:
+        // Police report step is always valid (user can choose not to file a report)
+        return true;
+      case 5:
         return claimData.confirmed;
       default:
         return false;
@@ -177,7 +193,7 @@ const ClaimIntakeFlow: React.FC = () => {
             <ArrowBack />
           </IconButton>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            New Claim - Step {currentStep} of 4
+            New Claim - Step {currentStep} of 5
           </Typography>
         </Toolbar>
       </AppBar>
@@ -204,7 +220,7 @@ const ClaimIntakeFlow: React.FC = () => {
             disabled={!isStepValid()}
             size="large"
           >
-            {currentStep === 4 ? 'Submit Claim' : 'Next Step'}
+            {currentStep === 5 ? 'Submit Claim' : 'Next Step'}
           </Button>
         </Box>
       </Container>

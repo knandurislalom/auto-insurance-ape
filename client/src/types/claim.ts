@@ -17,8 +17,11 @@ export interface ClaimData {
   
   // Step 3: Damage Photos
   damagePhotos: DamagePhoto[];
+
+  // Step 4: Police Report
+  policeReport: PoliceReport;
   
-  // Step 4: Confirmation
+  // Step 5: Confirmation
   confirmed: boolean;
 }
 
@@ -27,6 +30,16 @@ export interface DamagePhoto {
   location: string; // front, back, left-side, right-side, interior, etc.
   file: File;
   preview: string;
+}
+
+export interface PoliceReport {
+  id: string;
+  reportNumber?: string;
+  officerName?: string;
+  department?: string;
+  file?: File;
+  hasReport: boolean; // Whether a police report was filed
+  preview?: string;
 }
 
 export interface Vehicle {
