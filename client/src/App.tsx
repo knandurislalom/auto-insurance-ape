@@ -1,12 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography
-} from '@mui/material';
 import MuiThemeProvider from './components/MuiThemeProvider';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import AgentDashboard from './pages/AgentDashboard';
 import ClaimIntakeFlow from './pages/ClaimIntakeFlow';
 import ExistingClaims from './pages/ExistingClaims';
 import './App.css';
@@ -14,22 +13,50 @@ import './App.css';
 function App() {
   return (
     <MuiThemeProvider>
-      <Router>
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Auto Insurance Claims
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/claim/new" element={<ClaimIntakeFlow />} />
-          <Route path="/claims" element={<ExistingClaims />} />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            
+            {/* Customer Routes */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute requiredUserType="customer">
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/claim/new" 
+              element={
+                <ProtectedRoute requiredUserType="customer">
+                  <ClaimIntakeFlow />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/claims" 
+              element={
+                <ProtectedRoute requiredUserType="customer">
+                  <ExistingClaims />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Agent Routes */}
+            <Route 
+              path="/agent-dashboard" 
+              element={
+                <ProtectedRoute requiredUserType="agent">
+                  <AgentDashboard />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </MuiThemeProvider>
   );
 }

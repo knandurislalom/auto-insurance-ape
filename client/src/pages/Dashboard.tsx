@@ -9,11 +9,15 @@ import {
   Box,
   Avatar,
   Chip,
-  Stack
+  Stack,
+  AppBar,
+  Toolbar,
+  IconButton
 } from '@mui/material';
-import { DirectionsCar, Add } from '@mui/icons-material';
+import { DirectionsCar, Add, Logout } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { Vehicle } from '../types/claim';
+import { useAuth } from '../contexts/AuthContext';
 
 const mockVehicles: Vehicle[] = [
   {
@@ -34,14 +38,44 @@ const mockVehicles: Vehicle[] = [
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const userName = 'Sarah'; // This would come from user context/auth
+  const { user, logout } = useAuth();
+  const userName = user?.name || 'User'; // Use authenticated user's name
 
   const handleStartClaim = (vehicleId: string) => {
     navigate(`/claim/new?vehicle=${vehicleId}`);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
-    <Container maxWidth="lg" sx={{ mt: 2, mb: 4 }}>
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Auto Insurance Claims
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="body1">
+              {userName}
+            </Typography>
+            <Avatar sx={{ bgcolor: 'secondary.main' }}>
+              {userName.charAt(0)}
+            </Avatar>
+            <IconButton 
+              color="inherit" 
+              onClick={handleLogout}
+            >
+              <Logout />
+            </IconButton>
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      <Container maxWidth="lg" sx={{ mt: 2, mb: 4 }}>
+
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Good morning, {userName}! 👋
@@ -131,6 +165,7 @@ const Dashboard: React.FC = () => {
         </Stack>
       </Box>
     </Container>
+    </Box>
   );
 };
 
