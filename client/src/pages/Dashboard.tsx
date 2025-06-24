@@ -18,6 +18,7 @@ import { DirectionsCar, Add, Logout } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { Vehicle } from '../types/claim';
 import { useAuth } from '../contexts/AuthContext';
+import ClaimFlowLogo from '../components/ClaimFlowLogo';
 
 const mockVehicles: Vehicle[] = [
   {
@@ -54,8 +55,9 @@ const Dashboard: React.FC = () => {
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static">
         <Toolbar>
+          <ClaimFlowLogo sx={{ mr: 2, color: 'white' }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Auto Insurance Claims
+            ClaimFlow
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="body1">

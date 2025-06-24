@@ -12,24 +12,14 @@
   },
   {
     "claim_id": "CLM002",
-    "claim_type": "home",
-    "claimant_name": "Miguel Alvarez",
-    "date_of_incident": "2025-06-10",
-    "location": "Houston, TX",
-    "description": "Water damage due to burst pipe",
-    "documents_uploaded": ["photo_ceiling.jpg", "repair_invoice.pdf"],
-    "estimated_damage": 8000,
+    "claim_type": "auto",
+    "claimant_name": "Michael Johnson",
+    "date_of_incident": "2025-06-18",
+    "location": "San Francisco, CA",
+    "description": "Vehicle vandalism in parking garage",
+    "documents_uploaded": ["damage_photos.jpg", "security_footage.mp4", "incident_report.pdf"],
+    "estimated_damage": 2800,
     "injuries_reported": false
-  },
-  {
-    "claim_id": "CLM003",
-    "claim_type": "medical",
-    "claimant_name": "Lena Patel",
-    "date_of_incident": "2025-06-01",
-    "location": "Chicago, IL",
-    "description": "ER visit for wrist fracture after fall",
-    "documents_uploaded": ["hospital_bill.pdf", "xray_image.jpg"],
-    "estimated_damage": 2200,
-    "injuries_reported": true
   }
+
 ]

@@ -13,16 +13,15 @@ import {
   CircularProgress,
   Card,
   CardContent,
-  Avatar,
   Divider
 } from '@mui/material';
 import { 
   Person, 
   Business, 
   Login as LoginIcon,
-  Security,
-  DirectionsCar
+  Security
 } from '@mui/icons-material';
+import ClaimFlowLogo from '../components/ClaimFlowLogo';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginCredentials } from '../types/auth';
 
@@ -131,22 +130,21 @@ const Login: React.FC = () => {
     }}>
       <Container maxWidth="md">
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Avatar 
+          <ClaimFlowLogo 
             sx={{ 
               width: 80, 
               height: 80, 
-              bgcolor: 'primary.main', 
+              color: 'primary.main', 
               mx: 'auto', 
-              mb: 2 
+              mb: 2,
+              display: 'block'
             }}
-          >
-            <DirectionsCar sx={{ fontSize: 40 }} />
-          </Avatar>
+          />
           <Typography variant="h3" component="h1" gutterBottom color="primary">
-            Auto Insurance Portal
+            ClaimFlow
           </Typography>
           <Typography variant="h6" color="text.secondary">
-            Secure access for customers and insurance agents
+            Streamlined insurance claims processing
           </Typography>
         </Box>
 

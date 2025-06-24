@@ -31,6 +31,7 @@ import {
   Home
 } from '@mui/icons-material';
 import { ExistingClaim } from '../types/claim';
+import ClaimFlowLogo from '../components/ClaimFlowLogo';
 
 const mockClaimsData: ExistingClaim[] = [
   {
@@ -165,8 +166,9 @@ const ExistingClaims: React.FC = () => {
           >
             <ArrowBack />
           </IconButton>
+          <ClaimFlowLogo sx={{ mr: 2, color: 'white' }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Your Claims
+            ClaimFlow - Your Claims
           </Typography>
         </Toolbar>
       </AppBar>

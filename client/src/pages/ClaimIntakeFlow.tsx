@@ -19,6 +19,7 @@ import ConfirmationStep from '../components/steps/ConfirmationStep';
 import SuccessStep from '../components/steps/SuccessStep';
 import PoliceReportStep from '../components/steps/PoliceReportStep';
 import { ClaimData, ClaimStep, Party, DamagePhoto, PoliceReport } from '../types/claim';
+import ClaimFlowLogo from '../components/ClaimFlowLogo';
 
 const initialClaimData: ClaimData = {
   parties: [{ id: '1', name: 'Sarah Johnson' }], // Pre-filled user
@@ -192,8 +193,9 @@ const ClaimIntakeFlow: React.FC = () => {
           >
             <ArrowBack />
           </IconButton>
+          <ClaimFlowLogo sx={{ mr: 2, color: 'white' }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            New Claim - Step {currentStep} of 5
+            ClaimFlow - Step {currentStep} of 5
           </Typography>
         </Toolbar>
       </AppBar>
