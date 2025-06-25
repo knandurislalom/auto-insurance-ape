@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Container,
   Typography,
@@ -25,46 +25,44 @@ import {
   Alert,
   Badge,
   Tooltip,
-  Divider,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   TextField,
-  InputAdornment
+  InputAdornment,
+  Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Menu
 } from '@mui/material';
 import {
   Logout,
   Assignment,
-  PendingActions,
   CheckCircle,
   Warning,
   Security,
-  TrendingUp,
   Search,
-  FilterList,
   PriorityHigh,
-  Schedule,
   Person,
-  AttachMoney,
-  Flag,
   Visibility,
   Edit,
-  MoreVert,
   NotificationImportant,
   Speed,
   Assessment,
-  Timeline,
-  AutoGraph,
-  ReportProblem,
-  Article,
-  People,
-  Analytics,
-  Gavel,
-  AccessTime,
-  TrendingDown,
-  Psychology,
-  Policy
+  ArrowBack,
+  Description,
+  Phone,
+  MoreVert,
+  GetApp,
+  Send,
+  Block
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -282,6 +280,12 @@ const AgentDashboard: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
+  const [showDetailView, setShowDetailView] = useState(false);
+  const [selectedClaims, setSelectedClaims] = useState<Set<string>>(new Set());
+  const [bulkActionMenu, setBulkActionMenu] = useState<null | HTMLElement>(null);
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [savedFilters, setSavedFilters] = useState<string[]>(['High Priority + Fraud Risk', 'Due Today', 'My Critical Claims']);
 
   const handleLogout = () => {
     logout();
@@ -292,12 +296,49 @@ const AgentDashboard: React.FC = () => {
     setTabValue(newValue);
   };
 
-  // Filter claims based on search and status
+  const handleClaimSelect = (claim: Claim) => {
+    setSelectedClaim(claim);
+    setShowDetailView(true);
+  };
+
+  const handleDetailViewClose = () => {
+    setShowDetailView(false);
+    setSelectedClaim(null);
+  };
+
+  const handleBulkSelect = (claimId: string, selected: boolean) => {
+    const newSelected = new Set(selectedClaims);
+    if (selected) {
+      newSelected.add(claimId);
+    } else {
+      newSelected.delete(claimId);
+    }
+    setSelectedClaims(newSelected);
+  };
+
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      setSelectedClaims(new Set(filteredClaims.map(c => c.id)));
+    } else {
+      setSelectedClaims(new Set());
+    }
+  };
+
+  const handleBulkAction = (action: string) => {
+    console.log(`Bulk action ${action} on claims:`, Array.from(selectedClaims));
+    // Here you would implement the actual bulk action logic
+    setBulkActionMenu(null);
+    setSelectedClaims(new Set());
+  };
+
+  // Filter claims based on search, status, and priority
   const filteredClaims = mockClaims.filter(claim => {
     const matchesSearch = claim.claimantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         claim.id.toLowerCase().includes(searchTerm.toLowerCase());
+                         claim.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         claim.claimType.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || claim.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesPriority = filterPriority === 'all' || claim.priority === filterPriority;
+    return matchesSearch && matchesStatus && matchesPriority;
   });
 
   // Calculate enhanced dashboard metrics
@@ -380,167 +421,131 @@ const AgentDashboard: React.FC = () => {
       </AppBar>
 
       <Container maxWidth="xl" sx={{ py: 3 }}>
-        {/* Intelligent Welcome Header */}
-        <Box sx={{ mb: 3 }}>
+        {/* Dashboard Header with Enhanced Branding */}
+        <Box sx={{ mb: 4 }}>
           <Typography variant="h4" component="h1" gutterBottom>
-            Good morning, {user?.name}! 👋
+            Welcome back, {user?.name}
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-            You have {metrics.criticalClaims > 0 ? `${metrics.criticalClaims} critical claims requiring immediate attention` : 
-                     `${metrics.highPriority} high-priority claims in your queue`}.
-            {metrics.slaRisk > 0 && ` ${metrics.slaRisk} claims are at SLA risk.`}
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+            {metrics.criticalClaims > 0 
+              ? `🚨 ${metrics.criticalClaims} critical claims need immediate attention`
+              : `📋 ${metrics.highPriority} priority claims in your queue`
+            }
           </Typography>
+          
+          {/* Enhanced Alert System */}
           {metrics.criticalClaims > 0 && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                <strong>⚠️ Critical Alert:</strong> CLM-002 (Auto Theft) has 85% fraud probability and needs immediate escalation.
+              <Typography variant="body1">
+                <strong>URGENT ACTION REQUIRED:</strong> Critical claims detected with high fraud probability
               </Typography>
             </Alert>
           )}
           {metrics.fraudAlerts > 0 && (
-            <Alert severity="warning">
-              <Typography variant="body2">
-                <strong>🔍 AI Insight:</strong> {metrics.fraudAlerts} claims flagged for potential fraud require expert review today.
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body1">
+                <strong>🔍 AI INSIGHT:</strong> {metrics.fraudAlerts} claims flagged for potential fraud - immediate review recommended
+              </Typography>
+            </Alert>
+          )}
+          {metrics.slaRisk > 0 && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body1">
+                <strong>⏰ SLA ALERT:</strong> {metrics.slaRisk} claims approaching deadline within 24 hours
               </Typography>
             </Alert>
           )}
         </Box>
 
-        {/* Enhanced Key Metrics Overview */}
+        {/* Enhanced Priority Queue Metrics */}
         <Box sx={{ 
           display: 'grid', 
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)', lg: 'repeat(6, 1fr)' },
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' },
           gap: 3,
           mb: 4 
         }}>
-          <Card sx={{ height: '100%', bgcolor: metrics.criticalClaims > 0 ? 'error.light' : 'background.paper' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h4" component="div" color={metrics.criticalClaims > 0 ? 'error.main' : 'primary.main'}>
-                    {metrics.criticalClaims}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Critical Claims
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: metrics.criticalClaims > 0 ? 'error.main' : 'error.light', color: 'white' }}>
-                  <ReportProblem />
-                </Avatar>
-              </Box>
+          <Card>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" component="div" color="primary.main" gutterBottom>
+                {metrics.totalClaims}
+              </Typography>
+              <Typography variant="h6" color="text.secondary">
+                Total Claims
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                In queue today
+              </Typography>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ bgcolor: metrics.criticalClaims > 0 ? 'error.light' : 'background.paper' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography 
+                variant="h3" 
+                component="div" 
+                color={metrics.criticalClaims > 0 ? 'error.main' : 'success.main'} 
+                gutterBottom
+              >
+                {metrics.criticalClaims}
+              </Typography>
+              <Typography variant="h6" color="text.secondary">
+                🔴 Critical
+              </Typography>
               {metrics.criticalClaims > 0 && (
-                <Chip label="Immediate Action Required" color="error" size="small" sx={{ mt: 1 }} />
+                <Chip label="Immediate Action" color="error" size="small" sx={{ mt: 1 }} />
               )}
             </CardContent>
           </Card>
 
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h4" component="div" color="primary.main">
-                    {metrics.totalClaims}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Active Claims
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main' }}>
-                  <Assignment />
-                </Avatar>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                <Chip label={`${metrics.highPriority} High Priority`} color="warning" size="small" />
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h4" component="div" color="warning.main">
-                    {metrics.avgFraudProbability}%
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Avg Fraud Risk
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'warning.light', color: 'warning.main' }}>
-                  <Psychology />
-                </Avatar>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                <Chip label={`${metrics.fraudAlerts} Active Alerts`} color="error" size="small" />
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h4" component="div" color="info.main">
-                    {metrics.slaRisk}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    SLA Risk
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'info.light', color: 'info.main' }}>
-                  <AccessTime />
-                </Avatar>
-              </Box>
+          <Card sx={{ bgcolor: metrics.highPriority > 0 ? 'warning.light' : 'background.paper' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" component="div" color="warning.main" gutterBottom>
+                {metrics.highPriority - metrics.criticalClaims}
+              </Typography>
+              <Typography variant="h6" color="text.secondary">
+                🟡 High Priority
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                Due within 24h
+                Review today
               </Typography>
             </CardContent>
           </Card>
 
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h4" component="div" color="error.main">
-                    {metrics.documentIssues}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Doc Issues
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'error.light', color: 'error.main' }}>
-                  <Article />
-                </Avatar>
-              </Box>
+          <Card sx={{ bgcolor: metrics.fraudAlerts > 0 ? 'error.light' : 'background.paper' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography 
+                variant="h3" 
+                component="div" 
+                color={metrics.fraudAlerts > 0 ? 'error.main' : 'success.main'} 
+                gutterBottom
+              >
+                {metrics.fraudAlerts}
+              </Typography>
+              <Typography variant="h6" color="text.secondary">
+                🚨 Fraud Alerts
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                Incomplete/Under Review
+                AI detected
               </Typography>
             </CardContent>
           </Card>
 
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h4" component="div" color="success.main">
-                    {metrics.completedToday}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Completed Today
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'success.light', color: 'success.main' }}>
-                  <CheckCircle />
-                </Avatar>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                <Chip label="+20% vs yesterday" color="success" size="small" />
-              </Box>
+          <Card>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" component="div" color="success.main" gutterBottom>
+                {metrics.completedToday}
+              </Typography>
+              <Typography variant="h6" color="text.secondary">
+                ✅ Completed
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Today's progress
+              </Typography>
             </CardContent>
           </Card>
         </Box>
 
-        {/* Enhanced Performance Insights & AI Recommendations */}
+        {/* Enhanced Quick Actions with AI Recommendations */}
         <Box sx={{ 
           display: 'grid', 
           gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
@@ -549,191 +554,127 @@ const AgentDashboard: React.FC = () => {
         }}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AutoGraph color="primary" />
-                AI-Powered Performance Insights
+              <Typography variant="h6" gutterBottom>
+                🎯 Smart Actions - AI Recommended
               </Typography>
               <Box sx={{ 
                 display: 'grid', 
                 gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-                gap: 3 
+                gap: 2,
+                mb: 3
               }}>
-                <Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Average Processing Time
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6">{metrics.avgProcessingTime}h</Typography>
-                      <Chip label="-15% vs last week" color="success" size="small" />
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={Math.max(0, 100 - (metrics.avgProcessingTime / 100 * 100))}
-                      color="success"
-                      sx={{ mt: 1, height: 4, borderRadius: 1 }}
-                    />
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Fraud Detection Accuracy
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6">94.2%</Typography>
-                      <Chip label="+3.1% vs last month" color="success" size="small" />
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={94.2}
-                      color="success"
-                      sx={{ mt: 1, height: 4, borderRadius: 1 }}
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Decision Consistency Score
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6">88.7%</Typography>
-                      <Chip label="Above target" color="info" size="small" />
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={88.7}
-                      color="info"
-                      sx={{ mt: 1, height: 4, borderRadius: 1 }}
-                    />
-                  </Box>
-                </Box>
-                <Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Total Portfolio Value
-                    </Typography>
-                    <Typography variant="h6">{formatCurrency(metrics.totalValue)}</Typography>
-                    <Typography variant="caption" color="success.main">
-                      Risk-adjusted: {formatCurrency(metrics.totalValue * 0.85)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      High-Risk Claims
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6" color="error.main">{metrics.fraudAlerts}</Typography>
-                      <Chip label="Active monitoring" color="error" size="small" />
-                    </Box>
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Data Inconsistencies
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6" color="warning.main">{metrics.inconsistencyFlags}</Typography>
-                      <Chip label="Requires review" color="warning" size="small" />
-                    </Box>
-                  </Box>
-                </Box>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<PriorityHigh />}
+                  fullWidth
+                  color="error"
+                  aria-label={`Review ${metrics.criticalClaims} critical priority claims`}
+                >
+                  Critical Claims ({metrics.criticalClaims})
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<Security />}
+                  fullWidth
+                  color="error"
+                  aria-label={`Review ${metrics.fraudAlerts} fraud alerts`}
+                >
+                  Fraud Alerts ({metrics.fraudAlerts})
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<CheckCircle />}
+                  fullWidth
+                  color="warning"
+                  aria-label={`Review ${metrics.pendingApproval} pending approvals`}
+                >
+                  Pending ({metrics.pendingApproval})
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<Assignment />}
+                  fullWidth
+                  color="info"
+                  aria-label="Batch process routine claims"
+                >
+                  Batch Process (3)
+                </Button>
               </Box>
               
-              {/* AI Recommendations Section */}
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Psychology color="primary" />
-                AI Recommendations for Today
+              {/* AI Workflow Recommendations */}
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                🤖 AI Workflow Recommendations
               </Typography>
               <Stack spacing={1}>
-                <Alert severity="warning" sx={{ py: 0.5 }}>
+                <Alert severity="info" sx={{ py: 1 }}>
                   <Typography variant="body2">
-                    <strong>Priority Focus:</strong> Review CLM-002 (Auto Theft) - High fraud probability (85%)
+                    <strong>Priority Focus:</strong> Process CLM-002 first - 85% fraud probability detected
                   </Typography>
                 </Alert>
-                <Alert severity="info" sx={{ py: 0.5 }}>
+                <Alert severity="success" sx={{ py: 1 }}>
                   <Typography variant="body2">
-                    <strong>Workflow Optimization:</strong> Batch process 3 routine vandalism claims for efficiency
+                    <strong>Efficiency Tip:</strong> Batch 3 similar collision claims for 25% time savings
                   </Typography>
                 </Alert>
-                <Alert severity="success" sx={{ py: 0.5 }}>
+                <Alert severity="warning" sx={{ py: 1 }}>
                   <Typography variant="body2">
-                    <strong>Pattern Detected:</strong> CLM-005 shows similar pattern to previous claims - investigate relationship
+                    <strong>SLA Alert:</strong> CLM-001 deadline in 8 hours - escalate if not resolved
                   </Typography>
                 </Alert>
               </Stack>
             </CardContent>
           </Card>
 
-          <Card sx={{ height: '100%' }}>
+          <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Gavel color="primary" />
-                Smart Actions
+              <Typography variant="h6" gutterBottom>
+                📊 Today's Performance
               </Typography>
-              <Stack spacing={2}>
-                <Button
-                  variant="contained"
-                  startIcon={<ReportProblem />}
-                  fullWidth
-                  color="error"
-                  size="large"
-                >
-                  Critical Claims ({metrics.criticalClaims})
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Psychology />}
-                  fullWidth
-                  color="warning"
-                >
-                  Fraud Alerts ({metrics.fraudAlerts})
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<AccessTime />}
-                  fullWidth
-                  color="info"
-                >
-                  SLA Risk ({metrics.slaRisk})
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Article />}
-                  fullWidth
-                >
-                  Doc Issues ({metrics.documentIssues})
-                </Button>
-                <Divider />
-                <Button
-                  variant="text"
-                  startIcon={<Analytics />}
-                  fullWidth
-                  size="small"
-                >
-                  View Full Analytics
-                </Button>
-                <Button
-                  variant="text"
-                  startIcon={<People />}
-                  fullWidth
-                  size="small"
-                >
-                  Team Collaboration
-                </Button>
-              </Stack>
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body1">Claims Target</Typography>
+                  <Typography variant="body1" fontWeight="bold">
+                    {metrics.completedToday}/15
+                  </Typography>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={(metrics.completedToday / 15) * 100} 
+                  sx={{ height: 8, borderRadius: 1, mb: 2 }}
+                />
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body1">Efficiency Score</Typography>
+                  <Typography variant="body1" fontWeight="bold" color="success.main">92%</Typography>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={92} 
+                  color="success"
+                  sx={{ height: 8, borderRadius: 1, mb: 2 }}
+                />
 
-              {/* Performance Badge */}
-              <Box sx={{ mt: 3, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
-                <Typography variant="subtitle2" color="success.dark" gutterBottom>
-                  Today's Performance
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2">Efficiency Score</Typography>
-                  <Chip label="92%" color="success" />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body1">Accuracy Rate</Typography>
+                  <Typography variant="body1" fontWeight="bold" color="success.main">96%</Typography>
                 </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                  <Typography variant="body2">Quality Score</Typography>
-                  <Chip label="96%" color="success" />
-                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={96} 
+                  color="success"
+                  sx={{ height: 8, borderRadius: 1 }}
+                />
               </Box>
+
+              <Alert severity="success">
+                <Typography variant="body2">
+                  <strong>Great performance!</strong> You're 15% ahead of team average and on track to exceed daily goals.
+                </Typography>
+              </Alert>
             </CardContent>
           </Card>
         </Box>
@@ -765,243 +706,399 @@ const AgentDashboard: React.FC = () => {
           </Box>
 
           <TabPanel value={tabValue} index={0}>
-            {/* Enhanced Priority Queue with Red Flags */}
+            {/* Enhanced Priority Queue with AI Intelligence */}
             <Alert severity="info" sx={{ mb: 3 }}>
-              <Typography variant="body2">
-                <strong>AI-Powered Prioritization:</strong> Claims are automatically ranked by risk score, fraud probability, SLA deadlines, and business impact. 
-                Red flags indicate potential fraud, data inconsistencies, or processing complications.
+              <Typography variant="body1">
+                <strong>🧠 AI-Powered Prioritization:</strong> Claims automatically ranked by fraud probability, 
+                SLA deadlines, claim complexity, and business impact. Focus on red items first.
               </Typography>
             </Alert>
 
-            {/* Search and Filter */}
-            <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
-              <TextField
-                placeholder="Search claims..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                size="small"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ minWidth: 300 }}
-              />
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={filterStatus}
-                  label="Status"
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <MenuItem value="all">All Status</MenuItem>
-                  <MenuItem value="New">New</MenuItem>
-                  <MenuItem value="Under Review">Under Review</MenuItem>
-                  <MenuItem value="Pending Approval">Pending Approval</MenuItem>
-                </Select>
-              </FormControl>
+            {/* Enhanced Search and Filters */}
+            <Box sx={{ mb: 3 }}>
+              {/* Primary Search and Filter Row */}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
+                <TextField
+                  placeholder="Search by claim ID, name, or type..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  size="medium"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ minWidth: 350 }}
+                  aria-label="Search claims"
+                />
+                <FormControl size="medium" sx={{ minWidth: 150 }}>
+                  <InputLabel>Status Filter</InputLabel>
+                  <Select
+                    value={filterStatus}
+                    label="Status Filter"
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                  >
+                    <MenuItem value="all">All Claims</MenuItem>
+                    <MenuItem value="New">🆕 New</MenuItem>
+                    <MenuItem value="Under Review">🔍 Under Review</MenuItem>
+                    <MenuItem value="Pending Approval">⏳ Pending Approval</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <FormControl size="medium" sx={{ minWidth: 150 }}>
+                  <InputLabel>Priority Filter</InputLabel>
+                  <Select
+                    value={filterPriority}
+                    label="Priority Filter"
+                    onChange={(e) => setFilterPriority(e.target.value)}
+                  >
+                    <MenuItem value="all">All Priorities</MenuItem>
+                    <MenuItem value="Critical">🔴 Critical</MenuItem>
+                    <MenuItem value="High">🟡 High</MenuItem>
+                    <MenuItem value="Medium">🟦 Medium</MenuItem>
+                    <MenuItem value="Low">🟢 Low</MenuItem>
+                  </Select>
+                </FormControl>
+
+                {/* Bulk Actions */}
+                {selectedClaims.size > 0 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" color="primary">
+                      {selectedClaims.size} selected
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={(e) => setBulkActionMenu(e.currentTarget)}
+                      endIcon={<MoreVert />}
+                    >
+                      Bulk Actions
+                    </Button>
+                    <Menu
+                      anchorEl={bulkActionMenu}
+                      open={Boolean(bulkActionMenu)}
+                      onClose={() => setBulkActionMenu(null)}
+                    >
+                      <MenuItem onClick={() => handleBulkAction('approve')}>
+                        <CheckCircle sx={{ mr: 1 }} /> Approve Selected
+                      </MenuItem>
+                      <MenuItem onClick={() => handleBulkAction('deny')}>
+                        <Block sx={{ mr: 1 }} /> Deny Selected
+                      </MenuItem>
+                      <MenuItem onClick={() => handleBulkAction('escalate')}>
+                        <Send sx={{ mr: 1 }} /> Escalate Selected
+                      </MenuItem>
+                      <MenuItem onClick={() => handleBulkAction('export')}>
+                        <GetApp sx={{ mr: 1 }} /> Export Selected
+                      </MenuItem>
+                    </Menu>
+                  </Box>
+                )}
+              </Box>
+
+              {/* Quick Filter Chips */}
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                <Chip 
+                  label="🔴 Critical Only" 
+                  clickable 
+                  color="error" 
+                  variant="outlined"
+                  onClick={() => setFilterPriority('Critical')}
+                />
+                <Chip 
+                  label="🚨 Fraud Alerts" 
+                  clickable 
+                  color="warning" 
+                  variant="outlined"
+                  onClick={() => setSearchTerm('fraud')}
+                />
+                <Chip 
+                  label="⏰ Due Today" 
+                  clickable 
+                  color="info" 
+                  variant="outlined"
+                  onClick={() => {
+                    const today = new Date().toISOString().split('T')[0];
+                    setSearchTerm(today);
+                  }}
+                />
+                <Chip 
+                  label="📄 Doc Issues" 
+                  clickable 
+                  color="secondary" 
+                  variant="outlined"
+                  onClick={() => setSearchTerm('incomplete')}
+                />
+              </Box>
+
+              {/* Saved Filters */}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Saved Filters:
+                </Typography>
+                {savedFilters.map((filter, index) => (
+                  <Chip
+                    key={index}
+                    label={filter}
+                    size="small"
+                    variant="outlined"
+                    clickable
+                    onClick={() => {
+                      // Apply saved filter logic here
+                      console.log(`Applying filter: ${filter}`);
+                      // Example: setSavedFilters usage
+                      if (filter.includes('Critical')) {
+                        setFilterPriority('Critical');
+                      }
+                    }}
+                  />
+                ))}
+              </Box>
             </Box>
 
-            {/* Enhanced Claims Table */}
-            <TableContainer>
-              <Table>
+            {/* Enhanced Claims Table with AI Features */}
+            <TableContainer component={Paper} sx={{ maxHeight: 700, borderRadius: 2 }}>
+              <Table stickyHeader aria-label="AI-powered claims priority queue">
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Claim ID</TableCell>
-                    <TableCell>Claimant</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Priority</TableCell>
-                    <TableCell>Risk</TableCell>
-                    <TableCell>Fraud Risk</TableCell>
-                    <TableCell>Amount</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>SLA</TableCell>
-                    <TableCell>Red Flags</TableCell>
-                    <TableCell>AI Recommendations</TableCell>
-                    <TableCell>Actions</TableCell>
+                  <TableRow sx={{ '& th': { backgroundColor: 'primary.light', color: 'primary.contrastText' } }}>
+                    <TableCell>
+                      <Checkbox
+                        checked={filteredClaims.length > 0 && selectedClaims.size === filteredClaims.length}
+                        indeterminate={selectedClaims.size > 0 && selectedClaims.size < filteredClaims.length}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        sx={{ color: 'white' }}
+                        aria-label="Select all claims"
+                      />
+                    </TableCell>
+                    <TableCell><Typography variant="subtitle2" fontWeight="bold">Priority</Typography></TableCell>
+                    <TableCell><Typography variant="subtitle2" fontWeight="bold">Claim Details</Typography></TableCell>
+                    <TableCell><Typography variant="subtitle2" fontWeight="bold">Claimant</Typography></TableCell>
+                    <TableCell><Typography variant="subtitle2" fontWeight="bold">AI Risk Assessment</Typography></TableCell>
+                    <TableCell><Typography variant="subtitle2" fontWeight="bold">Amount</Typography></TableCell>
+                    <TableCell><Typography variant="subtitle2" fontWeight="bold">Status & Timeline</Typography></TableCell>
+                    <TableCell><Typography variant="subtitle2" fontWeight="bold">Actions</Typography></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filteredClaims
                     .sort((a, b) => {
-                      // Enhanced priority sorting with Critical level
                       const priorityOrder = { 'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
                       if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
                         return priorityOrder[b.priority] - priorityOrder[a.priority];
                       }
-                      // Secondary sort by fraud probability for same priority
-                      if (a.fraudProbability !== b.fraudProbability) {
-                        return b.fraudProbability - a.fraudProbability;
-                      }
-                      return b.riskScore - a.riskScore;
+                      return b.fraudProbability - a.fraudProbability;
                     })
                     .map((claim) => {
                       const slaDeadline = new Date(claim.slaDeadline);
                       const now = new Date();
                       const hoursUntilDeadline = Math.max(0, (slaDeadline.getTime() - now.getTime()) / (1000 * 60 * 60));
-                      const slaRisk = hoursUntilDeadline <= 24;
+                      const isUrgent = hoursUntilDeadline <= 24;
                       
                       return (
-                        <TableRow key={claim.id} hover sx={{ 
-                          bgcolor: claim.priority === 'Critical' ? 'error.light' : 
-                                  slaRisk ? 'warning.light' : 'inherit'
-                        }}>
+                        <TableRow 
+                          key={claim.id} 
+                          hover 
+                          sx={{ 
+                            bgcolor: claim.priority === 'Critical' ? 'error.light' : 
+                                    isUrgent ? 'warning.light' : 
+                                    claim.fraudProbability >= 70 ? 'error.lighter' : 'inherit',
+                            '&:hover': {
+                              bgcolor: claim.priority === 'Critical' ? 'error.main' : 
+                                      isUrgent ? 'warning.main' : 'action.hover',
+                              color: claim.priority === 'Critical' || isUrgent ? 'white' : 'inherit'
+                            },
+                            borderLeft: claim.priority === 'Critical' ? '4px solid' : 
+                                       claim.fraudProbability >= 70 ? '4px solid' : 'none',
+                            borderLeftColor: claim.priority === 'Critical' ? 'error.main' : 'warning.main'
+                          }}
+                          aria-label={`${claim.priority} priority claim ${claim.id} for ${claim.claimantName}`}
+                        >
                           <TableCell>
-                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                              <Typography variant="body2" fontWeight="medium">
-                                {claim.id}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {claim.customerTier}
-                              </Typography>
-                            </Box>
+                            <Checkbox
+                              checked={selectedClaims.has(claim.id)}
+                              onChange={(e) => handleBulkSelect(claim.id, e.target.checked)}
+                              aria-label={`Select claim ${claim.id}`}
+                            />
                           </TableCell>
                           <TableCell>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 100 }}>
+                              <Chip
+                                label={claim.priority}
+                                color={getPriorityColor(claim.priority) as any}
+                                size="medium"
+                                icon={claim.priority === 'Critical' ? <Warning /> : undefined}
+                                aria-label={`Priority level: ${claim.priority}`}
+                                sx={{ mb: 1, minWidth: 80 }}
+                              />
+                              {claim.priority === 'Critical' && (
+                                <Typography variant="caption" color="error.main" fontWeight="bold">
+                                  🚨 URGENT
+                                </Typography>
+                              )}
+                              {isUrgent && (
+                                <Typography variant="caption" color="warning.main" fontWeight="bold">
+                                  ⏰ {Math.round(hoursUntilDeadline)}h left
+                                </Typography>
+                              )}
+                            </Box>
+                          </TableCell>
+                          
+                          <TableCell>
+                            <Box>
+                              <Typography variant="body1" fontWeight="bold" sx={{ mb: 0.5 }}>
+                                {claim.id}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                {claim.claimType}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Age: {claim.timeInQueue}h | Complexity: {claim.complexityScore}/10
+                              </Typography>
+                              {claim.flags.some(flag => flag.includes('Fraud')) && (
+                                <Box sx={{ mt: 1 }}>
+                                  <Chip 
+                                    label="🚨 FRAUD ALERT" 
+                                    color="error" 
+                                    size="small"
+                                    sx={{ fontSize: '0.7rem' }}
+                                    aria-label="This claim has fraud indicators"
+                                  />
+                                </Box>
+                              )}
+                            </Box>
+                          </TableCell>
+                          
+                          <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Avatar sx={{ width: 32, height: 32 }}>
+                              <Avatar 
+                                sx={{ 
+                                  width: 40, 
+                                  height: 40, 
+                                  bgcolor: claim.customerTier === 'Premium' ? 'primary.main' : 
+                                          claim.customerTier === 'Standard' ? 'info.main' : 'secondary.main'
+                                }}
+                              >
                                 <Person />
                               </Avatar>
                               <Box>
-                                <Typography variant="body2">{claim.claimantName}</Typography>
+                                <Typography variant="body1" fontWeight="medium">
+                                  {claim.claimantName}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {claim.customerTier} Customer
+                                </Typography>
                                 {claim.relatedClaims.length > 0 && (
-                                  <Typography variant="caption" color="warning.main">
-                                    {claim.relatedClaims.length} related claims
+                                  <Typography variant="caption" color="warning.main" sx={{ display: 'block' }}>
+                                    ⚠️ {claim.relatedClaims.length} related claims
                                   </Typography>
                                 )}
                               </Box>
                             </Box>
                           </TableCell>
+
                           <TableCell>
-                            <Box>
-                              <Typography variant="body2">{claim.claimType}</Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Complexity: {claim.complexityScore}/10
-                              </Typography>
+                            <Box sx={{ minWidth: 140 }}>
+                              {/* Overall Risk Score */}
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Overall Risk
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={claim.riskScore}
+                                    color={getRiskColor(claim.riskScore) as any}
+                                    sx={{ flexGrow: 1, height: 6, borderRadius: 1 }}
+                                    aria-label={`Risk score: ${claim.riskScore} out of 100`}
+                                  />
+                                  <Typography variant="caption" fontWeight="bold">
+                                    {claim.riskScore}%
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              
+                              {/* Fraud Probability */}
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Fraud Probability
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={claim.fraudProbability}
+                                    color={claim.fraudProbability >= 70 ? 'error' : 
+                                           claim.fraudProbability >= 40 ? 'warning' : 'success'}
+                                    sx={{ flexGrow: 1, height: 6, borderRadius: 1 }}
+                                  />
+                                  <Typography 
+                                    variant="caption" 
+                                    fontWeight="bold"
+                                    color={claim.fraudProbability >= 70 ? 'error.main' : 'text.primary'}
+                                  >
+                                    {claim.fraudProbability}%
+                                  </Typography>
+                                </Box>
+                              </Box>
+
+                              {/* AI Recommendations */}
+                              {claim.aiRecommendations.length > 0 && (
+                                <Typography variant="caption" color="primary.main" sx={{ fontStyle: 'italic' }}>
+                                  🤖 {claim.aiRecommendations[0]}
+                                </Typography>
+                              )}
                             </Box>
                           </TableCell>
+
                           <TableCell>
-                            <Chip
-                              label={claim.priority}
-                              color={getPriorityColor(claim.priority) as any}
-                              size="small"
-                              icon={claim.priority === 'Critical' ? <ReportProblem /> : undefined}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100 }}>
-                              <LinearProgress
-                                variant="determinate"
-                                value={claim.riskScore}
-                                color={getRiskColor(claim.riskScore) as any}
-                                sx={{ flexGrow: 1, height: 6, borderRadius: 1 }}
-                              />
-                              <Typography variant="caption" color="text.secondary">
-                                {claim.riskScore}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100 }}>
-                              <LinearProgress
-                                variant="determinate"
-                                value={claim.fraudProbability}
-                                color={claim.fraudProbability >= 80 ? 'error' : 
-                                       claim.fraudProbability >= 60 ? 'warning' : 'success'}
-                                sx={{ flexGrow: 1, height: 6, borderRadius: 1 }}
-                              />
-                              <Typography variant="caption" color="text.secondary">
-                                {claim.fraudProbability}%
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight="medium">
+                            <Typography variant="body1" fontWeight="bold" sx={{ mb: 0.5 }}>
                               {formatCurrency(claim.amount)}
                             </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Est. Resolution: {claim.estimatedResolutionTime}h
+                            </Typography>
                           </TableCell>
+
                           <TableCell>
                             <Box>
                               <Chip
                                 label={claim.status}
                                 variant="outlined"
-                                size="small"
-                                color={claim.status === 'Escalated' ? 'error' : 'default'}
+                                size="medium"
+                                color={claim.status === 'New' ? 'info' : 
+                                       claim.status === 'Under Review' ? 'warning' : 'default'}
+                                sx={{ mb: 1 }}
                               />
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                {claim.documentStatus}
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                📄 Docs: {claim.documentStatus}
                               </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AccessTime 
-                                fontSize="small" 
-                                color={slaRisk ? 'error' : 'action'} 
-                              />
-                              <Typography 
-                                variant="caption" 
-                                color={slaRisk ? 'error.main' : 'text.secondary'}
-                              >
-                                {Math.round(hoursUntilDeadline)}h
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-                              {claim.flags.map((flag, index) => (
-                                <Tooltip key={index} title={flag}>
-                                  <Chip
-                                    label={flag}
-                                    size="small"
-                                    color={flag.includes('Fraud') ? 'error' : 
-                                           flag.includes('High') || flag.includes('SLA') ? 'warning' : 'default'}
-                                    sx={{ fontSize: '0.7rem', height: 20 }}
-                                  />
-                                </Tooltip>
-                              ))}
                               {claim.inconsistencies.length > 0 && (
-                                <Tooltip title={`Inconsistencies: ${claim.inconsistencies.join(', ')}`}>
-                                  <Chip
-                                    label={`${claim.inconsistencies.length} Issues`}
-                                    size="small"
-                                    color="warning"
-                                    sx={{ fontSize: '0.7rem', height: 20 }}
-                                  />
-                                </Tooltip>
-                              )}
-                            </Stack>
-                          </TableCell>
-                          <TableCell sx={{ minWidth: 200 }}>
-                            <Stack spacing={0.5}>
-                              {claim.aiRecommendations.slice(0, 2).map((rec, index) => (
-                                <Typography key={index} variant="caption" color="primary.main">
-                                  • {rec}
-                                </Typography>
-                              ))}
-                              {claim.aiRecommendations.length > 2 && (
-                                <Typography variant="caption" color="text.secondary">
-                                  +{claim.aiRecommendations.length - 2} more...
+                                <Typography variant="caption" color="error.main" sx={{ display: 'block' }}>
+                                  ⚠️ {claim.inconsistencies.length} inconsistencies
                                 </Typography>
                               )}
-                            </Stack>
+                            </Box>
                           </TableCell>
+
                           <TableCell>
-                            <Stack direction="row" spacing={0.5}>
-                              <Tooltip title="Review Claim">
-                                <IconButton size="small" color="primary">
+                            <Stack direction="row" spacing={1}>
+                              <Tooltip title="Review claim details and AI analysis">
+                                <IconButton 
+                                  size="medium" 
+                                  color="primary"
+                                  aria-label={`Review claim ${claim.id}`}
+                                  onClick={() => handleClaimSelect(claim)}
+                                >
                                   <Visibility />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip title="Edit">
-                                <IconButton size="small">
+                              <Tooltip title="Edit claim information">
+                                <IconButton 
+                                  size="medium"
+                                  aria-label={`Edit claim ${claim.id}`}
+                                >
                                   <Edit />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="More Actions">
-                                <IconButton size="small">
-                                  <MoreVert />
                                 </IconButton>
                               </Tooltip>
                             </Stack>
@@ -1012,6 +1109,19 @@ const AgentDashboard: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            
+            {/* Claims Summary Footer */}
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Showing {filteredClaims.length} claims | 
+                🔴 {filteredClaims.filter(c => c.priority === 'Critical').length} Critical | 
+                🚨 {filteredClaims.filter(c => c.fraudProbability >= 70).length} High Fraud Risk | 
+                ⏰ {filteredClaims.filter(c => {
+                  const hours = (new Date(c.slaDeadline).getTime() - new Date().getTime()) / (1000 * 60 * 60);
+                  return hours <= 24;
+                }).length} Due Soon
+              </Typography>
+            </Box>
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>
@@ -1025,284 +1135,388 @@ const AgentDashboard: React.FC = () => {
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Analytics color="primary" />
-              Advanced Analytics & Predictive Insights
+            <Typography variant="h6" gutterBottom>
+              Performance Summary
             </Typography>
             
-            {/* Performance Metrics Grid */}
+            {/* Simplified Performance Cards */}
             <Box sx={{ 
               display: 'grid', 
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
               gap: 3,
-              mb: 4
+              mb: 3
             }}>
               <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Speed color="primary" />
-                    Processing Efficiency
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <Speed color="primary" sx={{ fontSize: 40, mb: 2 }} />
+                  <Typography variant="h4" color="success.main" gutterBottom>
+                    2.1h
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Box>
-                      <Typography variant="h4" color="success.main">2.1h</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Avg processing time
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={88} 
-                    color="success"
-                    sx={{ height: 8, borderRadius: 1, mb: 1 }}
-                  />
-                  <Stack spacing={1}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">vs Team Avg</Typography>
-                      <Typography variant="caption" color="success.main">+35% faster</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">vs Industry</Typography>
-                      <Typography variant="caption" color="success.main">+42% faster</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Monthly Trend</Typography>
-                      <Chip label="-12%" color="success" size="small" />
-                    </Box>
-                  </Stack>
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    Average Processing Time
+                  </Typography>
+                  <Chip label="25% faster than team" color="success" />
                 </CardContent>
               </Card>
 
               <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Assessment color="success" />
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <Assessment color="success" sx={{ fontSize: 40, mb: 2 }} />
+                  <Typography variant="h4" color="success.main" gutterBottom>
+                    96.8%
+                  </Typography>
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
                     Decision Accuracy
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Box>
-                      <Typography variant="h4" color="success.main">96.8%</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Overall accuracy
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={96.8} 
-                    color="success"
-                    sx={{ height: 8, borderRadius: 1, mb: 1 }}
-                  />
-                  <Stack spacing={1}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Fraud Detection</Typography>
-                      <Typography variant="caption" color="success.main">94.2%</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Risk Assessment</Typography>
-                      <Typography variant="caption" color="success.main">98.1%</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Target (95%)</Typography>
-                      <Chip label="+1.8%" color="success" size="small" />
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TrendingUp color="info" />
-                    Predictive Analytics
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Box>
-                      <Typography variant="h4" color="info.main">+23%</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Forecasted efficiency gain
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={75} 
-                    color="info"
-                    sx={{ height: 8, borderRadius: 1, mb: 1 }}
-                  />
-                  <Stack spacing={1}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Next Week Volume</Typography>
-                      <Typography variant="caption" color="warning.main">+15%</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">Fraud Risk Trend</Typography>
-                      <Typography variant="caption" color="error.main">+8%</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption">AI Confidence</Typography>
-                      <Chip label="92%" color="info" size="small" />
-                    </Box>
-                  </Stack>
+                  <Chip label="Above target (95%)" color="success" />
                 </CardContent>
               </Card>
             </Box>
 
-            {/* Detailed Analytics */}
-            <Box sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' },
-              gap: 3 
-            }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Claim Processing Insights
-                  </Typography>
-                  <Box sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: 2,
-                    mb: 3
-                  }}>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Claims by Priority Distribution
-                      </Typography>
-                      <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                        <Chip label={`Critical: ${metrics.criticalClaims}`} color="error" size="small" />
-                        <Chip label={`High: ${metrics.highPriority - metrics.criticalClaims}`} color="warning" size="small" />
-                      </Stack>
-                      <LinearProgress variant="determinate" value={40} color="error" sx={{ mb: 0.5, height: 4 }} />
-                      <LinearProgress variant="determinate" value={30} color="warning" sx={{ mb: 0.5, height: 4 }} />
-                      <LinearProgress variant="determinate" value={20} color="info" sx={{ mb: 0.5, height: 4 }} />
-                      <LinearProgress variant="determinate" value={10} color="success" sx={{ height: 4 }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Risk Distribution
-                      </Typography>
-                      <Stack spacing={1}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption">High Risk (80+)</Typography>
-                          <Typography variant="caption" color="error.main">
-                            {mockClaims.filter(c => c.riskScore >= 80).length} claims
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption">Medium Risk (40-79)</Typography>
-                          <Typography variant="caption" color="warning.main">
-                            {mockClaims.filter(c => c.riskScore >= 40 && c.riskScore < 80).length} claims
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption">Low Risk (&lt;40)</Typography>
-                          <Typography variant="caption" color="success.main">
-                            {mockClaims.filter(c => c.riskScore < 40).length} claims
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                  </Box>
-                  
-                  <Divider sx={{ my: 2 }} />
-                  
-                  <Typography variant="subtitle2" gutterBottom>
-                    AI Model Performance Metrics
-                  </Typography>
-                  <Box sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: 2
-                  }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Fraud Detection Precision
-                      </Typography>
-                      <Typography variant="h6" color="success.main">94.2%</Typography>
-                      <LinearProgress variant="determinate" value={94.2} color="success" sx={{ height: 3 }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Priority Accuracy
-                      </Typography>
-                      <Typography variant="h6" color="info.main">91.7%</Typography>
-                      <LinearProgress variant="determinate" value={91.7} color="info" sx={{ height: 3 }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Time Prediction
-                      </Typography>
-                      <Typography variant="h6" color="warning.main">88.3%</Typography>
-                      <LinearProgress variant="determinate" value={88.3} color="warning" sx={{ height: 3 }} />
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Workload Optimization
-                  </Typography>
-                  
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    <Typography variant="body2">
-                      <strong>AI Recommendation:</strong> Consider batching 3 similar auto collision claims for 20% efficiency gain.
+            {/* Simple Progress Summary */}
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Today's Progress
+                </Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body1">Claims Processed</Typography>
+                    <Typography variant="body1" fontWeight="bold">
+                      {metrics.completedToday} / 12 target
                     </Typography>
-                  </Alert>
-                  
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="body2" gutterBottom>Current Workload</Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption">Capacity Utilization</Typography>
-                        <Typography variant="body2" fontWeight="medium">78%</Typography>
-                      </Box>
-                      <LinearProgress variant="determinate" value={78} sx={{ height: 6, borderRadius: 1 }} />
-                    </Box>
-                    
-                    <Box>
-                      <Typography variant="body2" gutterBottom>Projected This Week</Typography>
-                      <Stack spacing={1}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption">New Claims</Typography>
-                          <Typography variant="caption">+12</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption">Expected Closures</Typography>
-                          <Typography variant="caption">-18</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption">Net Change</Typography>
-                          <Typography variant="caption" color="success.main">-6</Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                    
-                    <Divider />
-                    
-                    <Box>
-                      <Typography variant="body2" gutterBottom>Performance Recommendations</Typography>
-                      <Stack spacing={1}>
-                        <Typography variant="caption" color="primary.main">
-                          • Focus on CLM-002 (high fraud risk)
-                        </Typography>
-                        <Typography variant="caption" color="primary.main">
-                          • Batch process routine claims
-                        </Typography>
-                        <Typography variant="caption" color="primary.main">
-                          • Review SLA-risk items first
-                        </Typography>
-                      </Stack>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Box>
+                  </Box>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={(metrics.completedToday / 12) * 100} 
+                    sx={{ height: 8, borderRadius: 1 }}
+                  />
+                </Box>
+                
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body1">Quality Score</Typography>
+                    <Typography variant="body1" fontWeight="bold">96%</Typography>
+                  </Box>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={96} 
+                    color="success"
+                    sx={{ height: 8, borderRadius: 1 }}
+                  />
+                </Box>
+
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  <Typography variant="body1">
+                    <strong>Great work!</strong> You're on track to exceed your daily goals.
+                  </Typography>
+                </Alert>
+              </CardContent>
+            </Card>
           </TabPanel>
         </Card>
+
+        {/* Claim Detail Dialog */}
+        <Dialog 
+          open={showDetailView} 
+          onClose={handleDetailViewClose}
+          maxWidth="lg"
+          fullWidth
+          aria-labelledby="claim-detail-dialog-title"
+        >
+          <DialogTitle id="claim-detail-dialog-title" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <IconButton onClick={handleDetailViewClose} aria-label="Go back to claims list">
+                  <ArrowBack />
+                </IconButton>
+                <Typography variant="h5">
+                  Claim {selectedClaim?.id} - {selectedClaim?.claimantName}
+                </Typography>
+              </Box>
+              <Button variant="outlined" size="small">
+                🔄 Refresh
+              </Button>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+            {selectedClaim && (
+              <Box sx={{ p: 3 }}>
+                {/* Header with claim overview and priority */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3, mb: 3 }}>
+                  {/* Claim Overview */}
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        📋 Claim Overview
+                      </Typography>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Claim ID</Typography>
+                          <Typography variant="body1" fontWeight="medium">{selectedClaim.id}</Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Date Submitted</Typography>
+                          <Typography variant="body1">{new Date(selectedClaim.dateSubmitted).toLocaleDateString()}</Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Claim Type</Typography>
+                          <Typography variant="body1">{selectedClaim.claimType}</Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Estimated Damage</Typography>
+                          <Typography variant="body1" fontWeight="bold">{formatCurrency(selectedClaim.amount)}</Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Status</Typography>
+                          <Chip label={selectedClaim.status} size="small" color="primary" />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Assigned To</Typography>
+                          <Typography variant="body1">{selectedClaim.assignedTo || 'Unassigned'}</Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Priority</Typography>
+                          <Chip 
+                            label={selectedClaim.priority} 
+                            color={getPriorityColor(selectedClaim.priority) as any} 
+                            size="small"
+                          />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">Customer Tier</Typography>
+                          <Typography variant="body1">{selectedClaim.customerTier}</Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+
+                  {/* Risk Assessment Panel */}
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        📊 Risk Assessment
+                      </Typography>
+                      <Box sx={{ mb: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Overall Risk Score
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold" 
+                            color={selectedClaim.riskScore >= 80 ? 'error.main' : selectedClaim.riskScore >= 60 ? 'warning.main' : 'success.main'}>
+                            {selectedClaim.riskScore >= 80 ? '⚠️ HIGH' : selectedClaim.riskScore >= 60 ? '🟡 MED' : '✅ LOW'}
+                          </Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={selectedClaim.riskScore} 
+                          color={getRiskColor(selectedClaim.riskScore) as any}
+                          sx={{ height: 8, borderRadius: 1, mb: 1 }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedClaim.riskScore}%
+                        </Typography>
+                      </Box>
+                      
+                      <Box sx={{ mb: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Fraud Indicators
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold" 
+                            color={selectedClaim.fraudProbability >= 70 ? 'error.main' : selectedClaim.fraudProbability >= 40 ? 'warning.main' : 'success.main'}>
+                            {selectedClaim.fraudProbability >= 70 ? '⚠️ HIGH' : selectedClaim.fraudProbability >= 40 ? '🟡 MED' : '✅ LOW'}
+                          </Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={selectedClaim.fraudProbability} 
+                          color={selectedClaim.fraudProbability >= 70 ? 'error' : selectedClaim.fraudProbability >= 40 ? 'warning' : 'success'}
+                          sx={{ height: 8, borderRadius: 1, mb: 1 }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedClaim.fraudProbability}%
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Time Sensitivity
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold" color="error.main">
+                            🔴 HIGH
+                          </Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={80} 
+                          color="error"
+                          sx={{ height: 8, borderRadius: 1, mb: 1 }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          SLA: {Math.round((new Date(selectedClaim.slaDeadline).getTime() - new Date().getTime()) / (1000 * 60 * 60))}h remaining
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Box>
+
+                {/* Red Flags and Alerts */}
+                {(selectedClaim.flags.length > 0 || selectedClaim.inconsistencies.length > 0) && (
+                  <Card sx={{ mb: 3, bgcolor: 'error.lighter' }}>
+                    <CardContent>
+                      <Typography variant="h6" color="error.main" gutterBottom>
+                        🚨 FRAUD ALERT: Multiple red flags
+                      </Typography>
+                      <Box sx={{ mb: 2 }}>
+                        {selectedClaim.flags.map((flag, index) => (
+                          <Alert key={index} severity="warning" sx={{ mb: 1 }}>
+                            <Typography variant="body2">⚠️ {flag}</Typography>
+                          </Alert>
+                        ))}
+                        {selectedClaim.inconsistencies.map((inconsistency, index) => (
+                          <Alert key={index} severity="error" sx={{ mb: 1 }}>
+                            <Typography variant="body2">⚠️ {inconsistency}</Typography>
+                          </Alert>
+                        ))}
+                      </Box>
+                      <Button variant="outlined" size="small" startIcon={<Assessment />}>
+                        📊 View Full Analysis
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Recommended Actions and Documents */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
+                  {/* Recommended Actions */}
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        🎯 Recommended Actions
+                      </Typography>
+                      <List dense>
+                        {selectedClaim.aiRecommendations.map((recommendation, index) => (
+                          <ListItem key={index} sx={{ px: 0 }}>
+                            <ListItemIcon>
+                              <Chip label={index + 1} size="small" color="primary" />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={recommendation}
+                              primaryTypographyProps={{ variant: 'body2' }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                      <Button variant="contained" fullWidth sx={{ mt: 2 }}>
+                        ▶️ Execute Action Plan
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Documents Status */}
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        📄 Documents
+                      </Typography>
+                      <Box sx={{ mb: 2 }}>
+                        <List dense>
+                          <ListItem sx={{ px: 0 }}>
+                            <ListItemIcon>
+                              <Description fontSize="small" color="success" />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary="📄 accident_report.pdf" 
+                              secondary="✅ Valid"
+                              primaryTypographyProps={{ variant: 'body2' }}
+                            />
+                          </ListItem>
+                          <ListItem sx={{ px: 0 }}>
+                            <ListItemIcon>
+                              <Description fontSize="small" color="success" />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary="🚓 police_report.pdf" 
+                              secondary="✅ Valid"
+                              primaryTypographyProps={{ variant: 'body2' }}
+                            />
+                          </ListItem>
+                          <ListItem sx={{ px: 0 }}>
+                            <ListItemIcon>
+                              <Description fontSize="small" color="success" />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary="🏥 medical_report.pdf" 
+                              secondary="✅ Valid"
+                              primaryTypographyProps={{ variant: 'body2' }}
+                            />
+                          </ListItem>
+                        </List>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        <strong>AI Analysis:</strong> Documents authentic
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        No alterations detected
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Cross-reference:</strong> ✅ Consistent
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Box>
+
+                {/* Case Notes */}
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      📝 Case Notes
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder="Add note..."
+                      multiline
+                      rows={2}
+                      variant="outlined"
+                      size="small"
+                      sx={{ mb: 2 }}
+                    />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        📅 {new Date(selectedClaim.lastActivity).toLocaleString()} - Initial review
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        📅 {new Date(selectedClaim.dateSubmitted).toLocaleString()} - Fraud flags noted
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        📅 {new Date(selectedClaim.dateSubmitted).toLocaleString()} - Escalated to SIU
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3, gap: 1 }}>
+            <Button onClick={handleDetailViewClose} color="secondary">
+              Close
+            </Button>
+            <Button variant="outlined" color="primary" startIcon={<Phone />}>
+              📞 Contact Claimant
+            </Button>
+            <Button variant="outlined" color="warning" startIcon={<Send />}>
+              📤 Escalate
+            </Button>
+            <Button variant="outlined" color="error" startIcon={<Block />}>
+              ❌ Deny Claim
+            </Button>
+            <Button variant="contained" color="success" startIcon={<CheckCircle />}>
+              ✅ Approve
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Box>
   );
