@@ -20,6 +20,7 @@ import {
 
 interface SuccessStepProps {
   onGoToDashboard: () => void;
+  claimId?: number | null;
 }
 
 const claimSteps = [
@@ -29,8 +30,8 @@ const claimSteps = [
   'Decision'
 ];
 
-const SuccessStep: React.FC<SuccessStepProps> = ({ onGoToDashboard }) => {
-  const claimNumber = `CLM-${Date.now().toString().slice(-6)}`;
+const SuccessStep: React.FC<SuccessStepProps> = ({ onGoToDashboard, claimId }) => {
+  const claimNumber = claimId ? `CLM-${claimId}` : `CLM-${Date.now().toString().slice(-6)}`;
   const estimatedTime = '3-5 business days';
 
   return (

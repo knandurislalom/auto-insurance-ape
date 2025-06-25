@@ -8,7 +8,9 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  IconButton
+  IconButton,
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import StepIndicator from '../components/StepIndicator';
@@ -20,6 +22,7 @@ import SuccessStep from '../components/steps/SuccessStep';
 import PoliceReportStep from '../components/steps/PoliceReportStep';
 import { ClaimData, ClaimStep, Party, DamagePhoto, PoliceReport } from '../types/claim';
 import ClaimFlowLogo from '../components/ClaimFlowLogo';
+import { ClaimsAPIService, CreateClaimRequest } from '../services/claimsAPI';
 
 const initialClaimData: ClaimData = {
   parties: [{ id: '1', name: 'Sarah Johnson' }], // Pre-filled user
@@ -52,6 +55,9 @@ const ClaimIntakeFlow: React.FC = () => {
   const [claimData, setClaimData] = useState<ClaimData>(initialClaimData);
   const [stepStatus, setStepStatus] = useState<ClaimStep[]>(steps);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submittedClaimId, setSubmittedClaimId] = useState<number | null>(null);
 
   useEffect(() => {
     // In a real app, you'd fetch vehicle data based on vehicleId
@@ -85,17 +91,67 @@ const ClaimIntakeFlow: React.FC = () => {
   };
 
   const handleSubmitClaim = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    
     try {
-      // Here you would make API call to submit claim
-      console.log('Submitting claim:', claimData);
+      // Transform ClaimData to CreateClaimRequest format
+      const primaryParty = claimData.parties[0];
+      const estimatedDamage = calculateEstimatedDamage(claimData.damagePhotos.length);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Collect files from damage photos and police reports
+      const files: File[] = [];
       
+      // Add damage photo files
+      claimData.damagePhotos.forEach(photo => {
+        if (photo.file) {
+          files.push(photo.file);
+        }
+      });
+      
+      // Add police report file if available
+      if (claimData.policeReport.hasReport && claimData.policeReport.file) {
+        files.push(claimData.policeReport.file);
+      }
+      
+      const createClaimRequest: CreateClaimRequest = {
+        policy_number: claimData.policyNumber,
+        claimant_name: primaryParty?.name || 'Unknown',
+        driver_present: true,
+        driver_name: primaryParty?.name || 'Unknown',
+        driver_license: primaryParty?.licenseNumber || undefined,
+        incident_date: claimData.incidentDate || undefined,
+        incident_location: claimData.incidentAddress || undefined,
+        damage_description: claimData.description || undefined,
+        estimated_damage: estimatedDamage,
+        injuries_reported: false,
+        status: 'pending',
+        files: files.length > 0 ? files : undefined
+      };
+
+      console.log('Submitting claim with data:', createClaimRequest);
+      console.log('Number of files being uploaded:', files.length);
+      
+      // Submit the claim with files
+      const createdClaim = await ClaimsAPIService.createClaim(createClaimRequest);
+      console.log('Claim created successfully:', createdClaim);
+      
+      setSubmittedClaimId(createdClaim.id);
       setIsSubmitted(true);
     } catch (error) {
       console.error('Error submitting claim:', error);
+      setSubmitError(error instanceof Error ? error.message : 'Failed to submit claim');
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  // Helper function to estimate damage based on number of photos
+  const calculateEstimatedDamage = (photoCount: number): number => {
+    // Simple heuristic: more photos likely means more damage
+    const baseDamage = 1000;
+    const damagePerPhoto = 500;
+    return baseDamage + (photoCount * damagePerPhoto);
   };
 
   const updateClaimData = (data: Partial<ClaimData>) => {
@@ -104,7 +160,7 @@ const ClaimIntakeFlow: React.FC = () => {
 
   const renderCurrentStep = () => {
     if (isSubmitted) {
-      return <SuccessStep onGoToDashboard={() => navigate('/dashboard')} />;
+      return <SuccessStep onGoToDashboard={() => navigate('/dashboard')} claimId={submittedClaimId} />;
     }
 
     switch (currentStep) {
@@ -176,7 +232,10 @@ const ClaimIntakeFlow: React.FC = () => {
   if (isSubmitted) {
     return (
       <Container maxWidth="md" sx={{ mt: 2, mb: 4 }}>
-        <SuccessStep onGoToDashboard={() => navigate('/dashboard')} />
+        <SuccessStep 
+          onGoToDashboard={() => navigate('/dashboard')}
+          claimId={submittedClaimId}
+        />
       </Container>
     );
   }
@@ -204,6 +263,11 @@ const ClaimIntakeFlow: React.FC = () => {
         <StepIndicator currentStep={currentStep} steps={stepStatus} />
         
         <Paper sx={{ p: 4, mb: 4 }}>
+          {submitError && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {submitError}
+            </Alert>
+          )}
           {renderCurrentStep()}
         </Paper>
 
@@ -212,6 +276,7 @@ const ClaimIntakeFlow: React.FC = () => {
             variant="outlined"
             onClick={handleBack}
             size="large"
+            disabled={isSubmitting}
           >
             {currentStep === 1 ? 'Cancel' : 'Back'}
           </Button>
@@ -219,10 +284,16 @@ const ClaimIntakeFlow: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleNext}
-            disabled={!isStepValid()}
+            disabled={!isStepValid() || isSubmitting}
             size="large"
+            startIcon={isSubmitting && currentStep === 5 ? <CircularProgress size={20} /> : undefined}
           >
-            {currentStep === 5 ? 'Submit Claim' : 'Next Step'}
+            {isSubmitting && currentStep === 5 
+              ? 'Submitting...' 
+              : currentStep === 5 
+                ? 'Submit Claim' 
+                : 'Next Step'
+            }
           </Button>
         </Box>
       </Container>

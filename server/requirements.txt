@@ -4,6 +4,7 @@ python-multipart==0.0.6
 sqlalchemy==2.0.23
 alembic==1.12.1
 pydantic==2.5.0
+pydantic-settings==2.10.1
 langchain==0.0.350
 langchain-community==0.0.5
 python-tesseract==0.3.10
