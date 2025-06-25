@@ -20,18 +20,22 @@ import {
   TableRow,
   TextField,
   InputAdornment,
-  Alert
+  Alert,
+  Tooltip,
+  Badge
 } from '@mui/material';
 import {
   Logout,
   Search,
-  Visibility
+  Visibility,
+  Warning,
+  ReportProblem
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import ClaimFlowLogo from '../components/ClaimFlowLogo';
 
-// Simplified claim interface
+// Enhanced claim interface with rule validation data
 interface SimpleClaim {
   id: string;
   claimantName: string;
@@ -40,7 +44,46 @@ interface SimpleClaim {
   priority: 'Critical' | 'High' | 'Medium' | 'Low';
   amount: number;
   status: 'New' | 'Under Review' | 'Pending Approval' | 'Approved' | 'Denied';
+  hasPoliceReport: boolean;
+  hasDriverLicense: boolean;
+  hasLicensePlate: boolean;
+  injuriesReported: boolean;
 }
+
+// Business Rules for validation
+interface BusinessRule {
+  id: string;
+  description: string;
+  severity: 'High' | 'Medium' | 'Low';
+  check: (claim: SimpleClaim) => boolean;
+}
+
+const businessRules: BusinessRule[] = [
+  {
+    id: 'A001',
+    description: 'Police report must be uploaded',
+    severity: 'High',
+    check: (claim) => claim.claimType.toLowerCase().includes('auto') ? claim.hasPoliceReport : true
+  },
+  {
+    id: 'A002',
+    description: 'License plate or driver\'s license required',
+    severity: 'High',
+    check: (claim) => claim.hasDriverLicense || claim.hasLicensePlate
+  },
+  {
+    id: 'A003',
+    description: 'Estimated damage for minor collisions should be < $10,000',
+    severity: 'Medium',
+    check: (claim) => claim.amount <= 10000
+  },
+  {
+    id: 'A004',
+    description: 'Injury flag inconsistent with damage < $500',
+    severity: 'Medium',
+    check: (claim) => !(claim.amount < 500 && claim.injuriesReported)
+  }
+];
 
 const mockClaims: SimpleClaim[] = [
   {
@@ -50,7 +93,11 @@ const mockClaims: SimpleClaim[] = [
     dateSubmitted: '2025-06-24',
     priority: 'Critical',
     amount: 15000,
-    status: 'New'
+    status: 'New',
+    hasPoliceReport: false, // Violates A001
+    hasDriverLicense: true,
+    hasLicensePlate: true,
+    injuriesReported: false
   },
   {
     id: 'CLM-002',
@@ -59,7 +106,11 @@ const mockClaims: SimpleClaim[] = [
     dateSubmitted: '2025-06-23',
     priority: 'Critical',
     amount: 35000,
-    status: 'Under Review'
+    status: 'Under Review',
+    hasPoliceReport: true,
+    hasDriverLicense: false, // Violates A002
+    hasLicensePlate: false,  // Violates A002
+    injuriesReported: false
   },
   {
     id: 'CLM-003',
@@ -68,7 +119,11 @@ const mockClaims: SimpleClaim[] = [
     dateSubmitted: '2025-06-24',
     priority: 'High',
     amount: 8500,
-    status: 'New'
+    status: 'New',
+    hasPoliceReport: true,
+    hasDriverLicense: true,
+    hasLicensePlate: true,
+    injuriesReported: false
   },
   {
     id: 'CLM-004',
@@ -77,7 +132,11 @@ const mockClaims: SimpleClaim[] = [
     dateSubmitted: '2025-06-22',
     priority: 'Medium',
     amount: 3200,
-    status: 'Under Review'
+    status: 'Under Review',
+    hasPoliceReport: true,
+    hasDriverLicense: true,
+    hasLicensePlate: true,
+    injuriesReported: false
   },
   {
     id: 'CLM-005',
@@ -86,7 +145,24 @@ const mockClaims: SimpleClaim[] = [
     dateSubmitted: '2025-06-21',
     priority: 'Low',
     amount: 1800,
-    status: 'Pending Approval'
+    status: 'Pending Approval',
+    hasPoliceReport: true,
+    hasDriverLicense: true,
+    hasLicensePlate: true,
+    injuriesReported: false
+  },
+  {
+    id: 'CLM-006',
+    claimantName: 'James Carter',
+    claimType: 'Auto Collision',
+    dateSubmitted: '2025-06-21',
+    priority: 'Medium',
+    amount: 400,
+    status: 'New',
+    hasPoliceReport: true,
+    hasDriverLicense: true,
+    hasLicensePlate: true,
+    injuriesReported: true // Violates A004 (injury with damage < $500)
   }
 ];
 
@@ -105,6 +181,17 @@ const SimplifiedAgentDashboard: React.FC = () => {
     // Navigate to claim details
   };
 
+  // Function to validate a claim against business rules
+  const validateClaim = (claim: SimpleClaim) => {
+    const violations = businessRules.filter(rule => !rule.check(claim));
+    return violations;
+  };
+
+  // Function to get all claims with rule violations
+  const getClaimsWithViolations = () => {
+    return mockClaims.filter(claim => validateClaim(claim).length > 0);
+  };
+
   // Filter claims based on search
   const filteredClaims = mockClaims.filter(claim => 
     claim.claimantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -116,6 +203,10 @@ const SimplifiedAgentDashboard: React.FC = () => {
   const totalClaims = mockClaims.length;
   const criticalClaims = mockClaims.filter(c => c.priority === 'Critical').length;
   const newClaims = mockClaims.filter(c => c.status === 'New').length;
+  const claimsWithViolations = getClaimsWithViolations();
+  const highSeverityViolations = claimsWithViolations.filter(claim => 
+    validateClaim(claim).some(violation => violation.severity === 'High')
+  ).length;
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -175,7 +266,19 @@ const SimplifiedAgentDashboard: React.FC = () => {
             Welcome back, {user?.name}
           </Typography>
           
-          {/* Single Alert for Critical Claims */}
+          {/* Rule Violations Alert */}
+          {claimsWithViolations.length > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body1">
+                <strong>⚠️ {claimsWithViolations.length} claims have business rule violations</strong>
+                {highSeverityViolations > 0 && (
+                  <span> - {highSeverityViolations} with high severity issues</span>
+                )}
+              </Typography>
+            </Alert>
+          )}
+          
+          {/* Critical Claims Alert */}
           {criticalClaims > 0 && (
             <Alert severity="error" sx={{ mb: 2 }}>
               <Typography variant="body1">
@@ -264,53 +367,94 @@ const SimplifiedAgentDashboard: React.FC = () => {
                     <TableCell><strong>Priority</strong></TableCell>
                     <TableCell><strong>Status</strong></TableCell>
                     <TableCell><strong>Amount</strong></TableCell>
+                    <TableCell><strong>Rule Issues</strong></TableCell>
                     <TableCell><strong>Date</strong></TableCell>
                     <TableCell><strong>Actions</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredClaims.map((claim) => (
-                    <TableRow key={claim.id} hover>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {claim.id}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{claim.claimantName}</TableCell>
-                      <TableCell>{claim.claimType}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={claim.priority}
-                          color={getPriorityColor(claim.priority) as any}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={claim.status}
-                          color={getStatusColor(claim.status) as any}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {formatCurrency(claim.amount)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{claim.dateSubmitted}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="small"
-                          startIcon={<Visibility />}
-                          onClick={() => handleViewClaim(claim.id)}
-                          variant="outlined"
-                        >
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredClaims.map((claim) => {
+                    const violations = validateClaim(claim);
+                    const hasHighSeverity = violations.some(v => v.severity === 'High');
+                    
+                    return (
+                      <TableRow key={claim.id} hover>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {claim.id}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{claim.claimantName}</TableCell>
+                        <TableCell>{claim.claimType}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={claim.priority}
+                            color={getPriorityColor(claim.priority) as any}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={claim.status}
+                            color={getStatusColor(claim.status) as any}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {formatCurrency(claim.amount)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {violations.length > 0 ? (
+                            <Tooltip 
+                              title={
+                                <div>
+                                  <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
+                                    Business Rule Violations:
+                                  </Typography>
+                                  {violations.map((violation, index) => (
+                                    <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
+                                      • {violation.id}: {violation.description} ({violation.severity})
+                                    </Typography>
+                                  ))}
+                                </div>
+                              }
+                              arrow
+                              placement="top"
+                            >
+                              <Badge badgeContent={violations.length} color={hasHighSeverity ? 'error' : 'warning'}>
+                                {hasHighSeverity ? (
+                                  <ReportProblem color="error" />
+                                ) : (
+                                  <Warning color="warning" />
+                                )}
+                              </Badge>
+                            </Tooltip>
+                          ) : (
+                            <Chip 
+                              label="Valid" 
+                              color="success" 
+                              size="small" 
+                              variant="outlined"
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>{claim.dateSubmitted}</TableCell>
+                        <TableCell>
+                          <Button
+                            size="small"
+                            startIcon={<Visibility />}
+                            onClick={() => handleViewClaim(claim.id)}
+                            variant="outlined"
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -324,6 +468,57 @@ const SimplifiedAgentDashboard: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Business Rules Summary */}
+        {claimsWithViolations.length > 0 && (
+          <Card sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Business Rule Violations Summary
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
+                {businessRules.map((rule) => {
+                  const violatingClaims = mockClaims.filter(claim => !rule.check(claim));
+                  return (
+                    <Box key={rule.id} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Chip 
+                          label={rule.id} 
+                          size="small" 
+                          color={rule.severity === 'High' ? 'error' : 'warning'}
+                          sx={{ mr: 1 }}
+                        />
+                        <Chip 
+                          label={rule.severity} 
+                          size="small" 
+                          color={rule.severity === 'High' ? 'error' : 'warning'}
+                          variant="outlined"
+                        />
+                      </Box>
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        {rule.description}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {violatingClaims.length > 0 ? (
+                          <span style={{ color: rule.severity === 'High' ? '#d32f2f' : '#ed6c02' }}>
+                            {violatingClaims.length} claims violating this rule
+                          </span>
+                        ) : (
+                          <span style={{ color: '#2e7d32' }}>All claims compliant</span>
+                        )}
+                      </Typography>
+                      {violatingClaims.length > 0 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                          Claims: {violatingClaims.map(c => c.id).join(', ')}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Box>
+            </CardContent>
+          </Card>
+        )}
       </Container>
     </Box>
   );
