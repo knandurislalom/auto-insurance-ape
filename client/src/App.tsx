@@ -5,7 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import AgentDashboard from './pages/AgentDashboard';
+import SimplifiedAgentDashboard from './pages/SimplifiedAgentDashboard';
 import ClaimIntakeFlow from './pages/ClaimIntakeFlow';
 import ExistingClaims from './pages/ExistingClaims';
 import './App.css';
@@ -50,7 +50,7 @@ function App() {
               path="/agent-dashboard" 
               element={
                 <ProtectedRoute requiredUserType="agent">
-                  <AgentDashboard />
+                  <SimplifiedAgentDashboard />
                 </ProtectedRoute>
               } 
             />
