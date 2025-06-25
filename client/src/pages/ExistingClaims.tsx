@@ -15,7 +15,8 @@ import {
   Alert,
   Stack,
   Avatar,
-  Paper
+  Paper,
+  CircularProgress
 } from '@mui/material';
 import {
   ArrowBack,
@@ -31,55 +32,49 @@ import {
   Home
 } from '@mui/icons-material';
 import { ExistingClaim } from '../types/claim';
+import { ClaimsAPIService } from '../services/claimsAPI';
 import ClaimFlowLogo from '../components/ClaimFlowLogo';
-
-const mockClaimsData: ExistingClaim[] = [
-  {
-    "claim_id": "CLM001",
-    "claim_type": "auto",
-    "claimant_name": "Sarah Johnson",
-    "date_of_incident": "2025-06-15",
-    "location": "Los Angeles, CA",
-    "description": "Rear-end collision at traffic light",
-    "documents_uploaded": ["photo_car_damage.jpg", "police_report.pdf"],
-    "estimated_damage": 4500,
-    "injuries_reported": false
-  },
-  {
-    "claim_id": "CLM002",
-    "claim_type": "home",
-    "claimant_name": "Miguel Alvarez",
-    "date_of_incident": "2025-06-10",
-    "location": "Houston, TX",
-    "description": "Water damage due to burst pipe",
-    "documents_uploaded": ["photo_ceiling.jpg", "repair_invoice.pdf"],
-    "estimated_damage": 8000,
-    "injuries_reported": false
-  },
-  {
-    "claim_id": "CLM003",
-    "claim_type": "medical",
-    "claimant_name": "Lena Patel",
-    "date_of_incident": "2025-06-01",
-    "location": "Chicago, IL",
-    "description": "ER visit for wrist fracture after fall",
-    "documents_uploaded": ["hospital_bill.pdf", "xray_image.jpg"],
-    "estimated_damage": 2200,
-    "injuries_reported": true
-  }
-];
 
 const ExistingClaims: React.FC = () => {
   const navigate = useNavigate();
   const [claims, setClaims] = useState<ExistingClaim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate loading mock data
-    setTimeout(() => {
-      setClaims(mockClaimsData);
-      setLoading(false);
-    }, 500);
+    const fetchClaims = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        // Fetch claims for Sarah Johnson specifically
+        const response = await ClaimsAPIService.getClaims({
+          claimant_name: 'Sarah Johnson'
+        });
+        
+        // Transform the API response to match the ExistingClaim interface
+        const claimsData = response.claims || []; // API returns { claims: [...], ... }
+        const transformedClaims: ExistingClaim[] = claimsData.map((claim: any) => ({
+          claim_id: `CLM${claim.id.toString().padStart(3, '0')}`,
+          claim_type: 'auto', // Default to auto since this is an auto insurance system
+          claimant_name: claim.claimant_name,
+          date_of_incident: claim.incident_date || new Date().toISOString().split('T')[0],
+          location: claim.incident_location || 'Location not specified',
+          description: claim.damage_description || 'No description provided',
+          documents_uploaded: claim.documents?.map((doc: any) => doc.filename) || [],
+          estimated_damage: claim.estimated_damage,
+          injuries_reported: claim.injuries_reported || false
+        }));
+        
+        setClaims(transformedClaims);
+      } catch (err) {
+        console.error('Error fetching claims:', err);
+        setError('Failed to load claims. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClaims();
   }, []);
 
   const getClaimTypeIcon = (type: string) => {
@@ -149,7 +144,23 @@ const ExistingClaims: React.FC = () => {
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Typography>Loading claims...</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <CircularProgress size={24} />
+          <Typography>Loading claims...</Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Alert severity="error">
+          <Typography variant="body1">{error}</Typography>
+          <Button variant="outlined" onClick={() => window.location.reload()} sx={{ mt: 1 }}>
+            Retry
+          </Button>
+        </Alert>
       </Container>
     );
   }
@@ -176,7 +187,7 @@ const ExistingClaims: React.FC = () => {
       <Container maxWidth="lg" sx={{ mt: 3, mb: 4 }}>
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" component="h1" gutterBottom>
-            Existing Claims
+            Sarah's Claims
           </Typography>
           <Typography variant="body1" color="text.secondary">
             View and manage your insurance claims. Click on any claim for more details.
@@ -186,7 +197,7 @@ const ExistingClaims: React.FC = () => {
         {claims.length === 0 ? (
           <Alert severity="info">
             <Typography variant="body1">
-              No claims found. <Button onClick={() => navigate('/dashboard')}>File your first claim</Button>
+              No claims found for Sarah Johnson. <Button onClick={() => navigate('/dashboard')}>File your first claim</Button>
             </Typography>
           </Alert>
         ) : (

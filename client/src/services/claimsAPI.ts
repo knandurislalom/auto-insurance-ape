@@ -1,5 +1,5 @@
 // API service for handling claims
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:8002/api';
 
 export interface CreateClaimRequest {
   policy_number: string;

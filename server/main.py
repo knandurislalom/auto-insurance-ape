@@ -31,7 +31,10 @@ app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 app.include_router(claimant_info.router, prefix="/api/claimant-info", tags=["claimant-info"])
 
 # Serve uploaded files
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+import os
+uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+if os.path.exists(uploads_dir):
+    app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # Serve React build files (for production)
 # app.mount("/", StaticFiles(directory="../client/build", html=True), name="frontend")
