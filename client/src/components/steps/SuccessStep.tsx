@@ -15,24 +15,109 @@ import {
   CheckCircle, 
   Receipt, 
   Dashboard,
-  Timeline
+  Timeline,
+  Build,
+  Assessment,
+  Schedule
 } from '@mui/icons-material';
+import { CollisionClaimData } from '../../types/claim';
 
 interface SuccessStepProps {
   onGoToDashboard: () => void;
   claimId?: number | null;
+  claimData?: CollisionClaimData;
 }
 
-const claimSteps = [
+const getNonCollisionSteps = () => [
   'Claim Submitted',
   'Under Review',
   'Assessment',
   'Decision'
 ];
 
-const SuccessStep: React.FC<SuccessStepProps> = ({ onGoToDashboard, claimId }) => {
+const getCollisionSteps = (estimationMethod?: string) => {
+  const baseSteps = [
+    'Claim Submitted',
+    'Under Review'
+  ];
+  
+  if (estimationMethod === 'adjuster') {
+    return [
+      ...baseSteps,
+      'Adjuster Scheduled',
+      'Damage Assessment',
+      'Estimate Review',
+      'Decision'
+    ];
+  } else if (estimationMethod === 'repair_shop') {
+    return [
+      ...baseSteps,
+      'Shop Estimate',
+      'Estimate Review',
+      'Repair Authorization',
+      'Decision'
+    ];
+  } else if (estimationMethod === 'digital') {
+    return [
+      ...baseSteps,
+      'AI Assessment',
+      'Estimate Review',
+      'Validation',
+      'Decision'
+    ];
+  }
+  
+  return baseSteps.concat(['Assessment', 'Decision']);
+};
+
+const SuccessStep: React.FC<SuccessStepProps> = ({ onGoToDashboard, claimId, claimData }) => {
   const claimNumber = claimId ? `CLM-${claimId}` : `CLM-${Date.now().toString().slice(-6)}`;
-  const estimatedTime = '3-5 business days';
+  const isCollision = claimData?.isCollision || false;
+  const estimationMethod = claimData?.estimationMethod;
+  
+  const claimSteps = isCollision 
+    ? getCollisionSteps(estimationMethod) 
+    : getNonCollisionSteps();
+  
+  const estimatedTime = isCollision ? '5-7 business days' : '3-5 business days';
+  
+  const getNextStepsContent = () => {
+    if (isCollision && estimationMethod) {
+      switch (estimationMethod) {
+        case 'adjuster':
+          return [
+            { time: 'Immediate', action: 'You\'ll receive a confirmation email with your claim details' },
+            { time: 'Within 24 hours', action: 'An adjuster will be assigned and will contact you to confirm the scheduled visit' },
+            { time: 'Scheduled visit', action: 'Adjuster will inspect your vehicle and provide damage assessment' },
+            { time: 'Within 2 days of visit', action: 'Estimate will be reviewed and claim decision communicated' }
+          ];
+        case 'repair_shop':
+          return [
+            { time: 'Immediate', action: 'You\'ll receive a confirmation email with your claim details' },
+            { time: 'Today', action: 'Contact your selected repair shop to schedule an estimate appointment' },
+            { time: 'After shop estimate', action: 'Repair shop will submit estimate directly to us for review' },
+            { time: 'Within 2-3 days', action: 'Estimate will be reviewed and repair authorization provided' }
+          ];
+        case 'digital':
+          return [
+            { time: 'Immediate', action: 'You\'ll receive a confirmation email with your claim details' },
+            { time: 'Within 1 hour', action: 'AI assessment will be completed based on your uploaded photos' },
+            { time: 'Within 24 hours', action: 'Digital estimate will be validated by our team' },
+            { time: 'Within 2 days', action: 'Final estimate and claim decision will be communicated' }
+          ];
+      }
+    }
+    
+    // Default non-collision steps
+    return [
+      { time: 'Immediate', action: 'You\'ll receive a confirmation email with your claim details' },
+      { time: 'Within 24 hours', action: 'A claims adjuster will be assigned to review your case' },
+      { time: 'Within 2-3 days', action: 'You may be contacted for additional information or to schedule an assessment' },
+      { time: 'Within 5 days', action: 'Initial decision on your claim will be communicated' }
+    ];
+  };
+
+  const nextSteps = getNextStepsContent();
 
   return (
     <Box sx={{ textAlign: 'center' }}>
@@ -49,7 +134,21 @@ const SuccessStep: React.FC<SuccessStepProps> = ({ onGoToDashboard, claimId }) =
           Claim Submitted Successfully!
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Your auto insurance claim has been received and is being processed.
+          Your {isCollision ? 'collision' : 'auto insurance'} claim has been received and is being processed.
+          {isCollision && estimationMethod && (
+            <Box sx={{ mt: 1 }}>
+              <Chip 
+                label={`${estimationMethod === 'adjuster' ? 'Adjuster Visit' : 
+                        estimationMethod === 'repair_shop' ? 'Repair Shop Estimate' : 
+                        'Digital Assessment'} Selected`}
+                size="small"
+                color="primary"
+                icon={estimationMethod === 'adjuster' ? <Schedule /> : 
+                     estimationMethod === 'repair_shop' ? <Build /> : 
+                     <Assessment />}
+              />
+            </Box>
+          )}
         </Typography>
       </Box>
 
@@ -130,18 +229,11 @@ const SuccessStep: React.FC<SuccessStepProps> = ({ onGoToDashboard, claimId }) =
           </Typography>
           
           <Box component="ol" sx={{ pl: 2 }}>
-            <Typography component="li" variant="body2" sx={{ mb: 1 }}>
-              <strong>Immediate:</strong> You'll receive a confirmation email with your claim details
-            </Typography>
-            <Typography component="li" variant="body2" sx={{ mb: 1 }}>
-              <strong>Within 24 hours:</strong> A claims adjuster will be assigned to review your case
-            </Typography>
-            <Typography component="li" variant="body2" sx={{ mb: 1 }}>
-              <strong>Within 2-3 days:</strong> You may be contacted for additional information or to schedule an assessment
-            </Typography>
-            <Typography component="li" variant="body2">
-              <strong>Within 5 days:</strong> Initial decision on your claim will be communicated
-            </Typography>
+            {nextSteps.map((step, index) => (
+              <Typography key={index} component="li" variant="body2" sx={{ mb: 1 }}>
+                <strong>{step.time}:</strong> {step.action}
+              </Typography>
+            ))}
           </Box>
         </CardContent>
       </Card>

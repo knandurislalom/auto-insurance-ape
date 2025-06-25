@@ -20,11 +20,16 @@ import DamagePhotosStep from '../components/steps/DamagePhotosStep';
 import ConfirmationStep from '../components/steps/ConfirmationStep';
 import SuccessStep from '../components/steps/SuccessStep';
 import PoliceReportStep from '../components/steps/PoliceReportStep';
-import { ClaimData, ClaimStep, Party, DamagePhoto, PoliceReport } from '../types/claim';
+import CollisionDetection from '../components/steps/CollisionDetection';
+import AdjusterScheduling from '../components/steps/AdjusterScheduling';
+import RepairShopSelection from '../components/steps/RepairShopSelection';
+import DigitalAssessmentGuide from '../components/steps/DigitalAssessmentGuide';
+import EstimateConfirmation from '../components/steps/EstimateConfirmation';
+import { CollisionClaimData, ClaimStep, Party, DamagePhoto, PoliceReport, AdjusterVisit, RepairShop, DigitalAssessment } from '../types/claim';
 import ClaimFlowLogo from '../components/ClaimFlowLogo';
 import { ClaimsAPIService, CreateClaimRequest } from '../services/claimsAPI';
 
-const initialClaimData: ClaimData = {
+const initialClaimData: CollisionClaimData = {
   parties: [{ id: '1', name: 'Sarah Johnson' }], // Pre-filled user
   policyNumber: 'POL-123456789', // Pre-filled
   incidentAddress: '',
@@ -35,16 +40,34 @@ const initialClaimData: ClaimData = {
     id: '1',
     hasReport: false
   },
-  confirmed: false
+  confirmed: false,
+  isCollision: false,
+  damageEstimates: []
 };
 
-const steps: ClaimStep[] = [
-  { step: 1, title: 'Parties Involved', completed: false },
-  { step: 2, title: 'Claim Information', completed: false },
-  { step: 3, title: 'Damage Photos', completed: false },
-  { step: 4, title: 'Police Report', completed: false },
-  { step: 5, title: 'Confirm & Submit', completed: false }
-];
+const getStepsForClaim = (isCollision: boolean): ClaimStep[] => {
+  const baseSteps: ClaimStep[] = [
+    { step: 1, title: 'Parties Involved', completed: false },
+    { step: 2, title: 'Claim Information', completed: false },
+    { step: 3, title: 'Damage Photos', completed: false },
+    { step: 4, title: 'Police Report', completed: false }
+  ];
+
+  if (isCollision) {
+    return [
+      ...baseSteps,
+      { step: 5, title: 'Estimation Method', completed: false },
+      { step: 6, title: 'Schedule Estimate', completed: false },
+      { step: 7, title: 'Estimate Status', completed: false },
+      { step: 8, title: 'Confirm & Submit', completed: false }
+    ];
+  } else {
+    return [
+      ...baseSteps,
+      { step: 5, title: 'Confirm & Submit', completed: false }
+    ];
+  }
+};
 
 const ClaimIntakeFlow: React.FC = () => {
   const navigate = useNavigate();
@@ -52,8 +75,9 @@ const ClaimIntakeFlow: React.FC = () => {
   const vehicleId = searchParams.get('vehicle');
   
   const [currentStep, setCurrentStep] = useState(1);
-  const [claimData, setClaimData] = useState<ClaimData>(initialClaimData);
-  const [stepStatus, setStepStatus] = useState<ClaimStep[]>(steps);
+  const [claimData, setClaimData] = useState<CollisionClaimData>(initialClaimData);
+  const [stepStatus, setStepStatus] = useState<ClaimStep[]>(getStepsForClaim(false));
+  const [maxSteps, setMaxSteps] = useState(5);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -63,6 +87,33 @@ const ClaimIntakeFlow: React.FC = () => {
     // In a real app, you'd fetch vehicle data based on vehicleId
     console.log('Selected vehicle:', vehicleId);
   }, [vehicleId]);
+
+  // Effect to detect collision and update steps
+  useEffect(() => {
+    const isCollisionClaim = detectCollisionClaim(claimData.description, claimData.damagePhotos);
+    if (isCollisionClaim !== claimData.isCollision) {
+      const newSteps = getStepsForClaim(isCollisionClaim);
+      setStepStatus(newSteps);
+      setMaxSteps(newSteps.length);
+      updateClaimData({ isCollision: isCollisionClaim });
+    }
+  }, [claimData.description, claimData.damagePhotos, claimData.isCollision]);
+
+  // Function to detect if this is a collision claim based on description and photos
+  const detectCollisionClaim = (description: string, photos: DamagePhoto[]): boolean => {
+    const collisionKeywords = ['collision', 'crash', 'accident', 'hit', 'rear-end', 'side-impact', 'front-end', 'bumper', 'fender'];
+    const hasCollisionKeywords = collisionKeywords.some(keyword => 
+      description.toLowerCase().includes(keyword)
+    );
+    
+    // Also check photo locations for collision indicators
+    const collisionPhotoLocations = ['front', 'back', 'left-side', 'right-side', 'bumper', 'fender'];
+    const hasCollisionPhotos = photos.some(photo =>
+      collisionPhotoLocations.some(location => photo.location.toLowerCase().includes(location))
+    );
+
+    return hasCollisionKeywords || hasCollisionPhotos;
+  };
 
   const handleNext = () => {
     // Mark current step as completed
@@ -74,11 +125,15 @@ const ClaimIntakeFlow: React.FC = () => {
       )
     );
 
-    if (currentStep < 4) {
-      setCurrentStep(prev => prev + 1);
-    } else {
+    const isLastStep = currentStep === maxSteps;
+    const isConfirmationStep = (!claimData.isCollision && currentStep === 5) || 
+                              (claimData.isCollision && currentStep === 8);
+
+    if (isConfirmationStep) {
       // Submit claim
       handleSubmitClaim();
+    } else if (!isLastStep) {
+      setCurrentStep(prev => prev + 1);
     }
   };
 
@@ -103,7 +158,7 @@ const ClaimIntakeFlow: React.FC = () => {
       const files: File[] = [];
       
       // Add damage photo files
-      claimData.damagePhotos.forEach(photo => {
+      claimData.damagePhotos.forEach((photo: DamagePhoto) => {
         if (photo.file) {
           files.push(photo.file);
         }
@@ -154,13 +209,19 @@ const ClaimIntakeFlow: React.FC = () => {
     return baseDamage + (photoCount * damagePerPhoto);
   };
 
-  const updateClaimData = (data: Partial<ClaimData>) => {
+  const updateClaimData = (data: Partial<CollisionClaimData>) => {
     setClaimData(prev => ({ ...prev, ...data }));
   };
 
   const renderCurrentStep = () => {
     if (isSubmitted) {
-      return <SuccessStep onGoToDashboard={() => navigate('/dashboard')} claimId={submittedClaimId} />;
+      return (
+        <SuccessStep 
+          onGoToDashboard={() => navigate('/dashboard')} 
+          claimId={submittedClaimId}
+          claimData={claimData}
+        />
+      );
     }
 
     switch (currentStep) {
@@ -198,6 +259,78 @@ const ClaimIntakeFlow: React.FC = () => {
           />
         );
       case 5:
+        // For collision claims, step 5 is collision detection/estimation method selection
+        // For non-collision claims, step 5 is confirmation
+        if (claimData.isCollision) {
+          return (
+            <CollisionDetection
+              onSelectEstimationMethod={(method: 'adjuster' | 'repair_shop' | 'digital') => {
+                updateClaimData({ estimationMethod: method });
+              }}
+            />
+          );
+        } else {
+          return (
+            <ConfirmationStep
+              claimData={claimData}
+              onUpdate={(data: any) => updateClaimData(data)}
+            />
+          );
+        }
+      case 6:
+        // Collision claims: Schedule estimate based on method
+        if (claimData.estimationMethod === 'adjuster') {
+          return (
+            <AdjusterScheduling
+              adjusterVisit={claimData.adjusterVisit}
+              onUpdate={(adjusterVisit: AdjusterVisit) => updateClaimData({ adjusterVisit })}
+              onSubmit={() => {}} // Handled by main navigation
+              onBack={() => {}} // Handled by main navigation
+            />
+          );
+        } else if (claimData.estimationMethod === 'repair_shop') {
+          return (
+            <RepairShopSelection
+              selectedRepairShop={claimData.selectedRepairShop}
+              onSelectShop={(selectedRepairShop: RepairShop) => updateClaimData({ selectedRepairShop })}
+              onSubmit={() => {}} // Handled by main navigation
+              onBack={() => {}} // Handled by main navigation
+            />
+          );
+        } else if (claimData.estimationMethod === 'digital') {
+          return (
+            <DigitalAssessmentGuide
+              digitalAssessment={claimData.digitalAssessment}
+              onUpdate={(digitalAssessment: DigitalAssessment) => updateClaimData({ digitalAssessment })}
+              onSubmit={() => {}} // Handled by main navigation
+              onBack={() => {}} // Handled by main navigation
+            />
+          );
+        }
+        return null;
+      case 7:
+        // Collision claims: Estimate confirmation/status
+        if (claimData.damageEstimates.length > 0) {
+          return (
+            <EstimateConfirmation
+              estimate={claimData.damageEstimates[0]}
+              estimationMethod={claimData.estimationMethod || 'digital'}
+              onViewDetails={() => {}}
+              onBackToDashboard={() => navigate('/dashboard')}
+            />
+          );
+        }
+        // If no estimates yet, show a placeholder or create a mock estimate
+        return (
+          <Box>
+            <Typography variant="h6">Waiting for estimate...</Typography>
+            <Alert severity="info">
+              Your estimate is being prepared. This step will show the estimate details once available.
+            </Alert>
+          </Box>
+        );
+      case 8:
+        // Collision claims: Final confirmation
         return (
           <ConfirmationStep
             claimData={claimData}
@@ -223,6 +356,30 @@ const ClaimIntakeFlow: React.FC = () => {
         // Police report step is always valid (user can choose not to file a report)
         return true;
       case 5:
+        // For non-collision claims, this is confirmation step
+        if (!claimData.isCollision) {
+          return claimData.confirmed;
+        }
+        // For collision claims, this is estimation method selection
+        return claimData.estimationMethod !== undefined;
+      case 6:
+        // Collision claims: Schedule estimate step validation
+        if (claimData.estimationMethod === 'adjuster') {
+          return claimData.adjusterVisit !== undefined &&
+                 claimData.adjusterVisit.preferredDate !== '' &&
+                 claimData.adjusterVisit.contactPhone !== '';
+        } else if (claimData.estimationMethod === 'repair_shop') {
+          return claimData.selectedRepairShop !== undefined;
+        } else if (claimData.estimationMethod === 'digital') {
+          return claimData.digitalAssessment !== undefined &&
+                 claimData.digitalAssessment.completedPhotos.length > 0;
+        }
+        return false;
+      case 7:
+        // Collision claims: Estimate confirmation step
+        return true; // Always valid, just showing status
+      case 8:
+        // Collision claims: Final confirmation
         return claimData.confirmed;
       default:
         return false;
@@ -235,6 +392,7 @@ const ClaimIntakeFlow: React.FC = () => {
         <SuccessStep 
           onGoToDashboard={() => navigate('/dashboard')}
           claimId={submittedClaimId}
+          claimData={claimData}
         />
       </Container>
     );
@@ -254,7 +412,7 @@ const ClaimIntakeFlow: React.FC = () => {
           </IconButton>
           <ClaimFlowLogo sx={{ mr: 2, color: 'white' }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            ClaimFlow - Step {currentStep} of 5
+            ClaimFlow - Step {currentStep} of {maxSteps}
           </Typography>
         </Toolbar>
       </AppBar>
