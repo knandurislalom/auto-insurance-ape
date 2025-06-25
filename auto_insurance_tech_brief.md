@@ -115,6 +115,8 @@ CREATE TABLE claims (
     incident_location TEXT,
     weather_conditions TEXT,
     damage_description TEXT,
+    estimated_damage INT NOT NULL,
+    injuries_reported BOOLEAN,
     submission_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     status TEXT DEFAULT 'pending'
 );

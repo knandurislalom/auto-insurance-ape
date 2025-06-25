@@ -165,3 +165,51 @@ class ClaimStats(BaseModel):
     total_damage_estimate: int
     average_damage_estimate: float
     recent_claims: int  # Claims in last 30 days
+
+
+# ClaimantInfo Schemas
+class ClaimantInfoBase(BaseModel):
+    """Base schema for claimant contact information."""
+    email_address: Optional[str] = Field(None, max_length=255, description="Primary email address")
+    phone_number: Optional[str] = Field(None, max_length=20, description="Primary phone number")
+    alternative_email: Optional[str] = Field(None, max_length=255, description="Alternative email address")
+    alternative_phone: Optional[str] = Field(None, max_length=20, description="Alternative phone number")
+    preferred_contact_method: Optional[str] = Field(None, max_length=50, description="Preferred contact method (email, phone, text)")
+
+    @validator('email_address', 'alternative_email')
+    def validate_email(cls, v):
+        if v and not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
+            raise ValueError('Invalid email format')
+        return v
+
+    @validator('phone_number', 'alternative_phone')
+    def validate_phone(cls, v):
+        if v and not re.match(r'^[\+]?[\d\s\-\(\)\.]{10,20}$', v):
+            raise ValueError('Invalid phone number format')
+        return v
+
+    @validator('preferred_contact_method')
+    def validate_contact_method(cls, v):
+        if v and v not in ['email', 'phone', 'text']:
+            raise ValueError('Preferred contact method must be email, phone, or text')
+        return v
+
+
+class ClaimantInfoCreate(ClaimantInfoBase):
+    """Schema for creating claimant contact information."""
+    pass
+
+
+class ClaimantInfoUpdate(ClaimantInfoBase):
+    """Schema for updating claimant contact information."""
+    pass
+
+
+class ClaimantInfo(ClaimantInfoBase):
+    """Schema for claimant contact information response."""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

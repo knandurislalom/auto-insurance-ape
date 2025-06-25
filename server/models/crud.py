@@ -13,7 +13,8 @@ from datetime import datetime, timedelta
 from .claim import Claim
 from .document import Document
 from .inconsistency import Inconsistency
-from .schemas import ClaimCreate, ClaimUpdate, DocumentCreate, InconsistencyCreate
+from .claimant_info import ClaimantInfo
+from .schemas import ClaimCreate, ClaimUpdate, DocumentCreate, InconsistencyCreate, ClaimantInfoCreate, ClaimantInfoUpdate
 
 
 class ClaimCRUD:
@@ -207,7 +208,76 @@ class InconsistencyCRUD:
         return False
 
 
+class ClaimantInfoCRUD:
+    """CRUD operations for ClaimantInfo."""
+    
+    @staticmethod
+    def create(db: Session, claimant_info_data: ClaimantInfoCreate) -> ClaimantInfo:
+        """Create new claimant contact information."""
+        db_claimant_info = ClaimantInfo(**claimant_info_data.model_dump())
+        db.add(db_claimant_info)
+        db.commit()
+        db.refresh(db_claimant_info)
+        return db_claimant_info
+    
+    @staticmethod
+    def get(db: Session, claimant_info_id: int) -> Optional[ClaimantInfo]:
+        """Get claimant info by ID."""
+        return db.query(ClaimantInfo).filter(ClaimantInfo.id == claimant_info_id).first()
+    
+    @staticmethod
+    def get_by_email(db: Session, email: str) -> List[ClaimantInfo]:
+        """Get claimant info by email address."""
+        return db.query(ClaimantInfo).filter(
+            or_(ClaimantInfo.email_address == email, ClaimantInfo.alternative_email == email)
+        ).all()
+    
+    @staticmethod
+    def get_by_phone(db: Session, phone: str) -> List[ClaimantInfo]:
+        """Get claimant info by phone number."""
+        return db.query(ClaimantInfo).filter(
+            or_(ClaimantInfo.phone_number == phone, ClaimantInfo.alternative_phone == phone)
+        ).all()
+    
+    @staticmethod
+    def get_multi(
+        db: Session, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[ClaimantInfo]:
+        """Get multiple claimant info records."""
+        return db.query(ClaimantInfo).offset(skip).limit(limit).all()
+    
+    @staticmethod
+    def update(
+        db: Session, 
+        claimant_info_id: int, 
+        claimant_info_update: ClaimantInfoUpdate
+    ) -> Optional[ClaimantInfo]:
+        """Update claimant contact information."""
+        db_claimant_info = db.query(ClaimantInfo).filter(ClaimantInfo.id == claimant_info_id).first()
+        if db_claimant_info:
+            update_data = claimant_info_update.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(db_claimant_info, field, value)
+            db.commit()
+            db.refresh(db_claimant_info)
+        return db_claimant_info
+    
+    @staticmethod
+    def delete(db: Session, claimant_info_id: int) -> bool:
+        """Delete claimant contact information."""
+        db_claimant_info = db.query(ClaimantInfo).filter(ClaimantInfo.id == claimant_info_id).first()
+        if db_claimant_info:
+            db.delete(db_claimant_info)
+            db.commit()
+            return True
+        return False
+
+
 # Convenience instances for easy import
 claim_crud = ClaimCRUD()
 document_crud = DocumentCRUD()
 inconsistency_crud = InconsistencyCRUD()
+claimant_info_crud = ClaimantInfoCRUD()
+claimant_info_crud = ClaimantInfoCRUD()

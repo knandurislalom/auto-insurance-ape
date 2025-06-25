@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.routers import claims, documents, ai
+from app.routers import claims, documents, ai, claimant_info
 from app.core.config import settings
 
 app = FastAPI(
@@ -13,7 +13,12 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://localhost:3001", 
+        "http://localhost:3002",
+        "http://localhost:3003"
+    ],  # React dev servers
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,6 +28,7 @@ app.add_middleware(
 app.include_router(claims.router, prefix="/api/claims", tags=["claims"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
+app.include_router(claimant_info.router, prefix="/api/claimant-info", tags=["claimant-info"])
 
 # Serve uploaded files
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

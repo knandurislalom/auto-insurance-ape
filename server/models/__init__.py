@@ -25,6 +25,7 @@ from .database import Base, engine, SessionLocal, get_db, create_tables, drop_ta
 from .claim import Claim
 from .document import Document
 from .inconsistency import Inconsistency
+from .claimant_info import ClaimantInfo
 
 # Make all models available at package level
 __all__ = [
@@ -36,14 +37,15 @@ __all__ = [
     "drop_tables",
     "Claim",
     "Document", 
-    "Inconsistency"
+    "Inconsistency",
+    "ClaimantInfo"
 ]
 
 # Import all models to ensure they are registered with SQLAlchemy
 # This is important for relationship resolution and table creation
 def import_all_models():
     """Import all models to ensure they are registered with SQLAlchemy."""
-    return [Claim, Document, Inconsistency]
+    return [Claim, Document, Inconsistency, ClaimantInfo]
 
 # Version information
 __version__ = "1.0.0"
